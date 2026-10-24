@@ -76,10 +76,10 @@ export default function ProductActionMatrix({ data, onProductSelect, selectedPro
       return {
         ...item,
         netScore,
-        category: classifyProduct({ 
-          positivePct: item.positivePct, 
-          negativePct: item.negativePct, 
-          total: item.totalReviews 
+        category: classifyProduct({
+          positivePct: item.positivePct,
+          negativePct: item.negativePct,
+          total: item.totalReviews
         }),
       };
     });
@@ -130,21 +130,19 @@ export default function ProductActionMatrix({ data, onProductSelect, selectedPro
     const netVariant = getNetScoreVariant(p.netScore);
 
     return (
-      <div 
-        key={p.name} 
+      <div
+        key={p.name}
         onClick={() => onProductSelect && onProductSelect(isSelected ? null : p.name)}
         className={`flex items-center justify-between p-3 mb-2 rounded-md cursor-pointer transition-all border-l-4 group
-          ${isSelected 
-            ? `ring-1 shadow-sm ${
-                isStar ? 'bg-emerald-50 ring-emerald-300 border-emerald-600' : 
-                isNeedsAttention ? 'bg-rose-50 ring-rose-300 border-rose-600' : 
+          ${isSelected
+            ? `ring-1 shadow-sm ${isStar ? 'bg-emerald-50 ring-emerald-300 border-emerald-600' :
+              isNeedsAttention ? 'bg-rose-50 ring-rose-300 border-rose-600' :
                 'bg-amber-50 ring-amber-300 border-amber-500'
-              }` 
-            : `bg-white hover:bg-slate-50 ${
-                isStar ? 'border-emerald-400' : 
-                isNeedsAttention ? 'border-rose-400' : 
+            }`
+            : `bg-white hover:bg-slate-50 ${isStar ? 'border-emerald-400' :
+              isNeedsAttention ? 'border-rose-400' :
                 'border-amber-400'
-              }`
+            }`
           }
         `}
       >
@@ -214,10 +212,10 @@ export default function ProductActionMatrix({ data, onProductSelect, selectedPro
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        
+
         {/* Star Product Section */}
         <div>
-          <div 
+          <div
             className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity w-max"
             onClick={() => toggleCollapse('star')}
           >
@@ -238,7 +236,7 @@ export default function ProductActionMatrix({ data, onProductSelect, selectedPro
 
         {/* Needs Attention Section */}
         <div>
-          <div 
+          <div
             className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity w-max"
             onClick={() => toggleCollapse('needsAttention')}
           >
@@ -259,7 +257,7 @@ export default function ProductActionMatrix({ data, onProductSelect, selectedPro
 
         {/* Mixed Reviews Section */}
         <div>
-          <div 
+          <div
             className="flex items-center gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity w-max"
             onClick={() => toggleCollapse('mixed')}
           >

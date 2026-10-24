@@ -4,17 +4,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { NotificationSystem } from '../components/NotificationSystem';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { AnnouncementModal } from '../components/AnnouncementModal';
-import { 
-  LogOut, 
-  LineChart, 
-  LayoutDashboard, 
-  FolderOpen, 
-  BarChart3, 
-  CreditCard, 
-  Settings, 
-  HelpCircle 
+import {
+  LogOut,
+  LineChart,
+  LayoutDashboard,
+  FolderOpen,
+  BarChart3,
+  CreditCard,
+  Settings,
+  HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScrollToTopButton } from '../components/ScrollToTopButton';
 
 export function UserDashboardLayout() {
   const { user, logout } = useAuth();
@@ -53,11 +54,15 @@ export function UserDashboardLayout() {
               key={item.name}
               to={item.path}
               end={item.path === '/dashboard'}
+              onClick={() => {
+                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                if (document.documentElement) document.documentElement.scrollTop = 0;
+                if (document.body) document.body.scrollTop = 0;
+              }}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${
-                  isActive
-                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-300 font-semibold'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${isActive
+                  ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-blue-300 font-semibold'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`
               }
             >
@@ -86,11 +91,11 @@ export function UserDashboardLayout() {
           <h2 className="text-lg font-semibold text-foreground">
             Retail Manager
           </h2>
-          
+
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <NotificationSystem />
-            
+
             <div className="flex flex-col items-end">
               <span className="text-sm font-medium leading-none text-foreground">{user?.username}</span>
               <span className="text-xs text-muted-foreground mt-1 capitalize">{user?.role?.replace('_', ' ').toLowerCase()}</span>
@@ -108,6 +113,9 @@ export function UserDashboardLayout() {
 
       {/* In-app Plan Announcements Modal */}
       <AnnouncementModal />
+
+      {/* Floating Scroll to Top Button */}
+      <ScrollToTopButton />
     </div>
   );
 }

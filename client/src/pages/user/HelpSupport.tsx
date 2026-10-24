@@ -278,7 +278,7 @@ export default function HelpSupport() {
                           Sending...
                         </>
                       ) : (
-                        'Submit Ticket'
+                        'Submit'
                       )}
                     </Button>
                   </div>

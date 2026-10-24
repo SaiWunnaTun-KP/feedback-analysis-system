@@ -10,7 +10,7 @@ const router = Router();
 router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
   try {
     const datasetId = parseInt(req.params.datasetId);
-    
+
     // Check if dataset belongs to user and is COMPLETED
     const [dataset] = await db.select().from(datasets).where(and(eq(datasets.id, datasetId), eq(datasets.userId, req.user.userId)));
     if (!dataset) {
@@ -78,7 +78,7 @@ router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
       const pCount = Number(row.positive_count);
       const nCount = Number(row.negative_count);
       const total = Number(row.total_count);
-      
+
       if (pCount > maxPos) {
         maxPos = pCount;
         topProduct = row.product_name;
@@ -153,7 +153,7 @@ router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
 router.get('/:datasetId/drilldown', authenticate, async (req: any, res: any) => {
   try {
     const datasetId = parseInt(req.params.datasetId);
-    
+
     // Check if dataset belongs to user
     const [dataset] = await db.select().from(datasets).where(and(eq(datasets.id, datasetId), eq(datasets.userId, req.user.userId)));
     if (!dataset) {
@@ -163,7 +163,7 @@ router.get('/:datasetId/drilldown', authenticate, async (req: any, res: any) => 
     const { product, polarity, aspect, keyword } = req.query;
 
     const conditions = [sql`r.dataset_id = ${datasetId}`];
-    
+
     if (product && product !== 'all') {
       conditions.push(sql`r.product_name = ${product}`);
     }
@@ -194,21 +194,21 @@ router.get('/:datasetId/drilldown', authenticate, async (req: any, res: any) => 
     // Prepare Word Cloud Data
     // Group by opinion text and sum frequency
     const wordMap = new Map<string, { text: string; value: number; sentiment: string }>();
-    
+
     const rows = Array.isArray(result) ? result : (result as any).rows || [];
-    
+
     const triplets = rows.map((r: any) => {
       const freq = Number(r.frequency);
       const text = String(r.opinion);
       const sentiment = String(r.sentiment);
-      
+
       if (wordMap.has(text)) {
         const existing = wordMap.get(text)!;
         existing.value += freq;
       } else {
         wordMap.set(text, { text, value: freq, sentiment });
       }
-      
+
       return {
         aspect: r.aspect,
         opinion: text,

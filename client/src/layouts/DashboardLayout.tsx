@@ -6,6 +6,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { AnnouncementModal } from '../components/AnnouncementModal';
 import { LogOut, LineChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScrollToTopButton } from '../components/ScrollToTopButton';
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
@@ -62,6 +63,9 @@ export function DashboardLayout() {
 
       {/* In-app Plan Announcements Modal */}
       <AnnouncementModal />
+
+      {/* Floating Scroll to Top Button */}
+      <ScrollToTopButton />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database/index.ts';
 import { activeSubscriptions, datasets, users, reviews } from '../database/schema.ts';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, count } from 'drizzle-orm';
 import { authenticate } from '../middlewares/authMiddleware.ts';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
@@ -22,12 +22,67 @@ const s3Client = new S3Client({
 });
 
 // GET /api/datasets
-// Get user's datasets
+// Get user's datasets with pagination
 router.get('/', authenticate, async (req: any, res: any) => {
   try {
     const userId = req.user.userId;
-    const userDatasets = await db.select().from(datasets).where(eq(datasets.userId, userId)).orderBy(datasets.createdAt);
-    res.json(userDatasets);
+    const isAll = req.query.all === 'true';
+
+    // 1. Fetch total count of user's datasets
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(datasets)
+      .where(eq(datasets.userId, userId));
+    const total = Number(countResult?.count || 0);
+
+    // If 'all=true' requested, return all datasets without pagination
+    if (isAll) {
+      const userDatasets = await db
+        .select()
+        .from(datasets)
+        .where(eq(datasets.userId, userId))
+        .orderBy(desc(datasets.createdAt));
+
+      return res.json({
+        datasets: userDatasets,
+        pagination: {
+          total,
+          page: 1,
+          limit: total || 1,
+          offset: 0,
+          totalPages: 1,
+        },
+      });
+    }
+
+    // 2. Parse pagination params
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string, 10) || 10));
+    const offset = req.query.offset !== undefined 
+      ? Math.max(0, parseInt(req.query.offset as string, 10) || 0)
+      : (page - 1) * limit;
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    // 3. Fetch paginated datasets
+    const userDatasets = await db
+      .select()
+      .from(datasets)
+      .where(eq(datasets.userId, userId))
+      .orderBy(desc(datasets.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    res.json({
+      datasets: userDatasets,
+      pagination: {
+        total,
+        page,
+        limit,
+        offset,
+        totalPages,
+      },
+    });
   } catch (error) {
     console.error('Error fetching datasets:', error);
     res.status(500).json({ error: 'Internal server error' });

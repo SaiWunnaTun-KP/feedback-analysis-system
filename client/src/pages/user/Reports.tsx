@@ -4,12 +4,12 @@ import { useSearchParams } from 'react-router';
 import { datasetsApi, reportsApi } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  Download, 
-  BarChart3, 
-  PieChart as PieChartIcon, 
-  TrendingUp, 
-  Target, 
+import {
+  Download,
+  BarChart3,
+  PieChart as PieChartIcon,
+  TrendingUp,
+  Target,
   AlertCircle
 } from 'lucide-react';
 import {
@@ -26,17 +26,21 @@ import DeepDiveDrillDown from '../../components/reports/DeepDiveDrillDown';
 
 export default function Reports() {
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  const { data: datasets = [], isLoading: loadingDatasets } = useQuery({
-    queryKey: ['datasets'],
-    queryFn: datasetsApi.get,
+
+  const { data: datasetsData, isLoading: loadingDatasets } = useQuery({
+    queryKey: ['datasets', { all: true }],
+    queryFn: () => datasetsApi.get({ all: true }),
   });
 
+  const datasets: any[] = Array.isArray(datasetsData) 
+    ? datasetsData 
+    : (datasetsData?.datasets || []);
+
   const completedDatasets = datasets.filter((d: any) => d.status === 'COMPLETED');
-  
+
   const queryDatasetId = searchParams.get('datasetId');
   const defaultDatasetId = queryDatasetId || (completedDatasets.length > 0 ? completedDatasets[0].id.toString() : '');
-  
+
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>(defaultDatasetId);
 
   // Filters for drilldown and other components
@@ -92,7 +96,7 @@ export default function Reports() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Analysis Reports</h1>
           <p className="text-slate-500">Detailed insights and sentiment analysis results.</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <Select value={selectedDatasetId} onValueChange={handleDatasetChange}>
             <SelectTrigger className="w-[280px] bg-white">
@@ -180,14 +184,14 @@ export default function Reports() {
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <RechartsTooltip 
+                    <RechartsTooltip
                       formatter={(value: any, name: any) => {
                         const total = overviewData.executiveOverview.sentimentBreakdown.reduce((sum: number, entry: any) => sum + (entry.value || 0), 0);
                         const percent = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : "0.0";
                         return [`${value} (${percent}%)`, name];
                       }}
                     />
-                    <Legend verticalAlign="bottom" height={36}/>
+                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -201,7 +205,7 @@ export default function Reports() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 min-h-0 relative">
-                <AspectPerformanceChart 
+                <AspectPerformanceChart
                   data={overviewData.aspectPerformance}
                   selectedAspect={filterAspect}
                   onAspectSelect={setFilterAspect}
@@ -211,14 +215,14 @@ export default function Reports() {
           </div>
 
           {/* Product Action Matrix */}
-          <ProductActionMatrix 
-            data={allProducts} 
+          <ProductActionMatrix
+            data={allProducts}
             selectedProduct={selectedProduct}
             onProductSelect={setSelectedProduct}
           />
 
           {/* Deep Dive Drill-Down */}
-          <DeepDiveDrillDown 
+          <DeepDiveDrillDown
             datasetId={Number(selectedDatasetId)}
             products={overviewData.products || []}
             aspects={overviewData.aspects || []}

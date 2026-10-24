@@ -78,12 +78,28 @@ export const subscriptionsApi = {
   create: (planId: number) => apiFetch('/subscriptions/create', { method: 'POST', body: JSON.stringify({ planId }) }),
   cancel: () => apiFetch('/subscriptions/cancel', { method: 'POST' }),
   purchase: (planId: number) => apiFetch('/subscriptions/purchase', { method: 'POST', body: JSON.stringify({ planId }) }),
-  getInvoices: () => apiFetch('/subscriptions/invoices'),
+  getInvoices: (params?: { page?: number; limit?: number; offset?: number }) => {
+    if (!params) return apiFetch('/subscriptions/invoices');
+    const query = new URLSearchParams(
+      Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    return apiFetch(`/subscriptions/invoices${query ? `?${query}` : ''}`);
+  },
   sync: () => apiFetch('/subscriptions/sync', { method: 'POST' }),
 };
 
 export const datasetsApi = {
-  get: () => apiFetch('/datasets'),
+  get: (params?: { page?: number; limit?: number; offset?: number; all?: boolean }) => {
+    if (!params) return apiFetch('/datasets');
+    const query = new URLSearchParams(
+      Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    return apiFetch(`/datasets${query ? `?${query}` : ''}`);
+  },
   upload: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

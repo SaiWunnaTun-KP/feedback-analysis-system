@@ -15,10 +15,14 @@ export default function Overview() {
     queryFn: subscriptionsApi.getMe,
   });
 
-  const { data: datasets = [], isLoading: loadingDatasets } = useQuery({
-    queryKey: ['datasets'],
-    queryFn: datasetsApi.get,
+  const { data: datasetsData, isLoading: loadingDatasets } = useQuery({
+    queryKey: ['datasets', { all: true }],
+    queryFn: () => datasetsApi.get({ all: true }),
   });
+
+  const datasets: any[] = Array.isArray(datasetsData) 
+    ? datasetsData 
+    : (datasetsData?.datasets || []);
 
   if (loadingSub || loadingDatasets) {
     return <div className="p-8 text-center text-slate-500">Loading overview...</div>;

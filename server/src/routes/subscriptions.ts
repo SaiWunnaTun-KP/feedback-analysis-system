@@ -243,18 +243,46 @@ router.post('/purchase', authenticate, async (req: any, res: any) => {
 router.get('/invoices', authenticate, async (req: any, res: any) => {
   try {
     const userId = req.user.userId;
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string, 10) || 10));
+    const offset = req.query.offset !== undefined
+      ? Math.max(0, parseInt(req.query.offset as string, 10) || 0)
+      : (page - 1) * limit;
+
     const [user] = await db.select().from(users).where(eq(users.id, userId));
 
     if (!user || !user.stripeCustomerId) {
-      return res.json([]);
+      return res.json({
+        invoices: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          offset,
+          totalPages: 1,
+        },
+      });
     }
 
-    const invoices = await stripe.invoices.list({
+    const allInvoices = await stripe.invoices.list({
       customer: user.stripeCustomerId,
-      limit: 10,
+      limit: 100,
     });
 
-    res.json(invoices.data);
+    const total = allInvoices.data.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const paginatedInvoices = allInvoices.data.slice(offset, offset + limit);
+
+    res.json({
+      invoices: paginatedInvoices,
+      pagination: {
+        total,
+        page,
+        limit,
+        offset,
+        totalPages,
+      },
+    });
   } catch (error) {
     console.error('Error fetching invoices:', error);
     res.status(500).json({ error: 'Internal server error' });

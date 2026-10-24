@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
-import { User, Lock, Moon, Sun, Monitor, Trash2, Key } from 'lucide-react';
+import { User, Lock, Moon, Sun, Monitor, Trash2, Key, LogOut } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { profileApi } from '../../services/api';
 import {
@@ -292,7 +292,7 @@ export default function Settings() {
               <Lock className="h-5 w-5 text-amber-500" />
               Security
             </CardTitle>
-            <CardDescription>Update your password or permanently delete your account.</CardDescription>
+            <CardDescription>Update your password, manage your active session, or permanently delete your account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-border rounded-lg bg-muted/30">
@@ -303,6 +303,26 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">Change your password via email verification.</p>
               </div>
               <Button variant="outline" onClick={() => setIsPasswordModalOpen(true)}>Change Password</Button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-border rounded-lg bg-muted/30">
+              <div className="space-y-1">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  <LogOut size={16} className="text-muted-foreground"/> Log Out
+                </h4>
+                <p className="text-sm text-muted-foreground">Log out of your current session on this device.</p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                  toast.success('Logged out successfully');
+                }}
+                className="gap-2 text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 border-rose-200 dark:border-rose-900/40"
+              >
+                <LogOut size={16} /> Log Out
+              </Button>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-destructive/20 rounded-lg bg-destructive/5">

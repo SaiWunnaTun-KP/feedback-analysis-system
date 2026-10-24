@@ -6,12 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Crown, CheckCircle2, CreditCard, Receipt } from 'lucide-react';
+import { Crown, CheckCircle2, CreditCard, Receipt, ChevronDown, ChevronUp, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import { PaymentModal } from '../../components/PaymentModal';
 
 export default function Subscriptions() {
   const [clientSecret, setClientSecret] = React.useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [showAllPlans, setShowAllPlans] = React.useState(false);
+  const [invoicePage, setInvoicePage] = React.useState(1);
+  const invoiceLimit = 10;
+  const invoiceOffset = (invoicePage - 1) * invoiceLimit;
 
   const queryClient = useQueryClient();
 
@@ -25,10 +29,22 @@ export default function Subscriptions() {
     queryFn: plansApi.getAll,
   });
 
-  const { data: invoices = [], isLoading: loadingInvoices } = useQuery({
-    queryKey: ['invoices'],
-    queryFn: subscriptionsApi.getInvoices,
+  const { data: invoicesData, isLoading: loadingInvoices } = useQuery({
+    queryKey: ['invoices', { page: invoicePage, limit: invoiceLimit, offset: invoiceOffset }],
+    queryFn: () => subscriptionsApi.getInvoices({ page: invoicePage, limit: invoiceLimit, offset: invoiceOffset }),
   });
+
+  const invoices: any[] = Array.isArray(invoicesData)
+    ? invoicesData
+    : (invoicesData?.invoices || []);
+
+  const invoicePagination = invoicesData?.pagination || {
+    total: invoices.length,
+    page: invoicePage,
+    limit: invoiceLimit,
+    offset: invoiceOffset,
+    totalPages: Math.ceil((invoicesData?.pagination?.total ?? invoices.length) / invoiceLimit) || 1,
+  };
 
   const purchaseMutation = useMutation({
     mutationFn: subscriptionsApi.create,
@@ -48,12 +64,21 @@ export default function Subscriptions() {
     onError: (error: any) => toast.error(error.message)
   });
 
-  if (loadingSub || loadingPlans || loadingInvoices) {
-    return <div className="p-8 text-center text-slate-500">Loading subscriptions...</div>;
-  }
-
   const { subscription, plan: currentPlan, hasUsedFreeTrial } = mySub || {};
   const isFreeTier = !subscription && !hasUsedFreeTrial;
+
+  const sortedPlans = React.useMemo(() => {
+    if (!currentPlan) return plans;
+    const current = plans.filter((p: any) => p.id === currentPlan.id);
+    const others = plans.filter((p: any) => p.id !== currentPlan.id);
+    return [...current, ...others];
+  }, [plans, currentPlan]);
+
+  const visiblePlans = showAllPlans ? sortedPlans : sortedPlans.slice(0, 3);
+
+  if (loadingSub || loadingPlans) {
+    return <div className="p-8 text-center text-slate-500">Loading subscriptions...</div>;
+  }
 
   const handlePaymentSuccess = async () => {
     setIsModalOpen(false);
@@ -110,9 +135,39 @@ export default function Subscriptions() {
 
       {/* Available Plans */}
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-4">Available Plans</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Available Plans</h2>
+            <p className="text-sm text-slate-500">
+              {plans.length > 3 && !showAllPlans 
+                ? `Showing top 3 of ${plans.length} available plans` 
+                : 'Choose the plan that fits your retail feedback analysis needs'}
+            </p>
+          </div>
+          {plans.length > 3 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowAllPlans(!showAllPlans)}
+              className="gap-1.5 text-xs font-medium self-start sm:self-auto"
+            >
+              {showAllPlans ? (
+                <>
+                  <span>Show Less</span>
+                  <ChevronUp className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  <span>View All Plans ({plans.length})</span>
+                  <ChevronDown className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plans.map((p: any) => (
+          {visiblePlans.map((p: any) => (
             <Card key={p.id} className={`shadow-sm border-slate-200/50 relative overflow-hidden transition-all hover:shadow-md ${currentPlan?.id === p.id ? 'ring-2 ring-blue-600' : ''}`}>
               {currentPlan?.id === p.id && (
                 <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">
@@ -157,10 +212,33 @@ export default function Subscriptions() {
               </CardFooter>
             </Card>
           ))}
-          {plans.length === 0 && (
+          {visiblePlans.length === 0 && (
             <p className="text-slate-500 italic">No plans available at the moment.</p>
           )}
         </div>
+
+        {plans.length > 3 && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAllPlans(!showAllPlans)}
+              className="gap-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium"
+            >
+              {showAllPlans ? (
+                <>
+                  <span>Show Less</span>
+                  <ChevronUp className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  <span>View all {plans.length} available plans</span>
+                  <ChevronDown className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Billing History */}
@@ -172,6 +250,7 @@ export default function Subscriptions() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
+                <TableHead className="w-16 text-center font-semibold">No.</TableHead>
                 <TableHead>Invoice ID</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Plan</TableHead>
@@ -181,35 +260,104 @@ export default function Subscriptions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices.map((inv: any) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium text-slate-900">{inv.number}</TableCell>
-                  <TableCell className="text-slate-500">{new Date(inv.created * 1000).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-slate-700">{inv.lines?.data[0]?.plan?.nickname || 'Subscription'}</TableCell>
-                  <TableCell className="text-slate-900">${(inv.amount_paid / 100).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={inv.status === 'paid' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
-                      {inv.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {inv.hosted_invoice_url ? (
-                      <Button variant="ghost" size="sm" className="text-blue-600" onClick={() => window.open(inv.hosted_invoice_url, '_blank')}>
-                        PDF
-                      </Button>
-                    ) : (
-                      <span className="text-slate-400 text-sm">N/A</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {invoices.length === 0 && (
+              {loadingInvoices ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-slate-500 py-4">No billing history found.</TableCell>
+                  <TableCell colSpan={7} className="text-center text-slate-500 py-6">Loading billing history...</TableCell>
                 </TableRow>
+              ) : invoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-slate-500 py-6">No billing history found.</TableCell>
+                </TableRow>
+              ) : (
+                invoices.map((inv: any, index: number) => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="text-center font-mono text-xs font-medium text-slate-500">
+                      {(invoicePagination.offset || 0) + index + 1}
+                    </TableCell>
+                    <TableCell className="font-medium text-slate-900">{inv.number}</TableCell>
+                    <TableCell className="text-slate-500">{new Date(inv.created * 1000).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-slate-700">{inv.lines?.data[0]?.plan?.nickname || 'Subscription'}</TableCell>
+                    <TableCell className="text-slate-900">${(inv.amount_paid / 100).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={inv.status === 'paid' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
+                        {inv.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {inv.hosted_invoice_url ? (
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => window.open(inv.hosted_invoice_url, '_blank')}>
+                          PDF
+                        </Button>
+                      ) : (
+                        <span className="text-slate-400 text-sm">N/A</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
+
+          {/* Invoice Pagination Bar */}
+          {invoicePagination.total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-200 gap-4 bg-slate-50/50">
+              <div className="text-sm text-slate-500">
+                Showing <span className="font-semibold text-slate-900">{invoicePagination.total === 0 ? 0 : (invoicePagination.offset || 0) + 1}</span> to{' '}
+                <span className="font-semibold text-slate-900">{Math.min((invoicePagination.offset || 0) + invoicePagination.limit, invoicePagination.total)}</span> of{' '}
+                <span className="font-semibold text-slate-900">{invoicePagination.total}</span> invoices
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setInvoicePage(1)}
+                  disabled={invoicePage <= 1 || loadingInvoices}
+                  className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                  title="First page"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                  <span className="sr-only">First page</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setInvoicePage(p => Math.max(1, p - 1))}
+                  disabled={invoicePage <= 1 || loadingInvoices}
+                  className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                  title="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="sr-only">Previous page</span>
+                </Button>
+                <span className="text-xs font-semibold px-3 py-1.5 bg-white rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
+                  Page {invoicePagination.page} of {invoicePagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setInvoicePage(p => Math.min(invoicePagination.totalPages, p + 1))}
+                  disabled={invoicePage >= invoicePagination.totalPages || loadingInvoices}
+                  className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                  title="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span className="sr-only">Next page</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setInvoicePage(invoicePagination.totalPages)}
+                  disabled={invoicePage >= invoicePagination.totalPages || loadingInvoices}
+                  className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                  title="Last page"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                  <span className="sr-only">Last page</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
