@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Eye, EyeOff, Search } from 'lucide-react';
+import { Plus, Edit3, Trash2, Eye, EyeOff, Search } from 'lucide-react';
 
 interface FaqItem {
   faqId: number;
@@ -231,10 +231,12 @@ export default function AdminFaqs() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40"
                           onClick={() => openEditDialog(faq)}
+                          title="Edit FAQ"
                         >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
+                          <Edit3 className="h-4 w-4" />
+                          <span className="sr-only">Edit FAQ</span>
                         </Button>
                         <Button
                           variant="ghost"

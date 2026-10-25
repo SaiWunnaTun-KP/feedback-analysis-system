@@ -207,7 +207,7 @@ export default function LandingPage() {
   // Fetch Active Plans
   const { data: plansResponse, isLoading: plansLoading } = useQuery({
     queryKey: ['publicPlans'],
-    queryFn: plansApi.getAll,
+    queryFn: () => plansApi.getAll(),
   });
   const plans: PlanItem[] = Array.isArray(plansResponse) ? plansResponse : [];
 

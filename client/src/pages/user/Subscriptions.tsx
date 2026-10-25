@@ -24,9 +24,9 @@ export default function Subscriptions() {
     queryFn: subscriptionsApi.getMe,
   });
 
-  const { data: plans = [], isLoading: loadingPlans } = useQuery({
+  const { data: plans = [], isLoading: loadingPlans } = useQuery<any[]>({
     queryKey: ['plans'],
-    queryFn: plansApi.getAll,
+    queryFn: () => plansApi.getAll(),
   });
 
   const { data: invoicesData, isLoading: loadingInvoices } = useQuery({

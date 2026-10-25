@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { plansApi } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,10 +14,40 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { AlertTriangle, Trash2, Users, Edit3, BellRing } from 'lucide-react';
+import { 
+  AlertTriangle, 
+  Trash2, 
+  Users, 
+  Edit3, 
+  BellRing, 
+  Search, 
+  ChevronsLeft, 
+  ChevronLeft, 
+  ChevronRight, 
+  ChevronsRight,
+  Power,
+  PowerOff
+} from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+
+const STORAGE_PRESETS = [
+  { label: '128 MB', value: 128 },
+  { label: '256 MB', value: 256 },
+  { label: '512 MB', value: 512 },
+  { label: '1 GB', value: 1024 },
+  { label: '2 GB', value: 2048 },
+  { label: '3 GB', value: 3072 },
+  { label: '5 GB', value: 5120 },
+];
 
 export default function AdminPlans() {
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   const [isCreating, setIsCreating] = useState(false);
   const [newPlan, setNewPlan] = useState({ name: '', price: '', maxStorageMb: '', durationDays: '30' });
   const [warningPlan, setWarningPlan] = useState<any | null>(null);
@@ -28,10 +58,27 @@ export default function AdminPlans() {
   const [editForm, setEditForm] = useState({ name: '', price: '', maxStorageMb: '', durationDays: '30' });
   const [editWarningOpen, setEditWarningOpen] = useState(false);
 
-  const { data: plans = [], isLoading } = useQuery({
-    queryKey: ['adminPlans'],
-    queryFn: plansApi.getAll,
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ['adminPlans', { page: currentPage, limit, search: debouncedSearch }],
+    queryFn: () => plansApi.getAll({ page: currentPage, limit, search: debouncedSearch }),
   });
+
+  const plans = Array.isArray(response) ? response : (response?.data || []);
+  const pagination = response?.pagination || {
+    total: plans.length,
+    page: currentPage,
+    limit: limit,
+    totalPages: Math.ceil(plans.length / limit) || 1,
+  };
 
   const createMutation = useMutation({
     mutationFn: plansApi.create,
@@ -140,15 +187,27 @@ export default function AdminPlans() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <TooltipProvider>
+      <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">Manage Plans</h2>
           <p className="text-slate-500">Configure subscription tiers, pricing, and automated subscriber announcements.</p>
         </div>
-        <Button onClick={() => setIsCreating(!isCreating)} variant={isCreating ? "outline" : "default"}>
-          {isCreating ? 'Cancel' : 'Create New Plan'}
-        </Button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search plans by name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button onClick={() => setIsCreating(!isCreating)} variant={isCreating ? "outline" : "default"}>
+            {isCreating ? 'Cancel' : 'Create New Plan'}
+          </Button>
+        </div>
       </div>
 
       {isCreating && (
@@ -168,8 +227,38 @@ export default function AdminPlans() {
                 <Input required type="number" step="0.01" value={newPlan.price} onChange={e => setNewPlan({...newPlan, price: e.target.value})} placeholder="29.99" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Max Storage (MB)</label>
-                <Input required type="number" value={newPlan.maxStorageMb} onChange={e => setNewPlan({...newPlan, maxStorageMb: e.target.value})} placeholder="1024" />
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Max Storage (MB)</label>
+                  {newPlan.maxStorageMb && !isNaN(Number(newPlan.maxStorageMb)) && Number(newPlan.maxStorageMb) > 0 && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-mono font-medium">
+                      ≈ {Number(newPlan.maxStorageMb) >= 1024 
+                          ? (parseFloat(newPlan.maxStorageMb) / 1024).toFixed(1).replace(/\.0$/, '') 
+                          : (parseFloat(newPlan.maxStorageMb) / 1024).toFixed(2).replace(/0$/, '')} GB
+                    </span>
+                  )}
+                </div>
+                <Input required type="number" value={newPlan.maxStorageMb} onChange={e => setNewPlan({...newPlan, maxStorageMb: e.target.value})} placeholder="e.g. 1024" />
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-xs text-slate-400 select-none">Presets:</span>
+                  {STORAGE_PRESETS.map((preset) => {
+                    const isSelected = newPlan.maxStorageMb === preset.value.toString();
+                    return (
+                      <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setNewPlan({ ...newPlan, maxStorageMb: preset.value.toString() })}
+                        className={cn(
+                          "px-2.5 py-1 text-xs rounded-md font-medium transition-colors border cursor-pointer",
+                          isSelected
+                            ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Duration (Days)</label>
@@ -190,23 +279,27 @@ export default function AdminPlans() {
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-100">
               <tr>
+                <th className="px-6 py-4 w-16">No.</th>
                 <th className="px-6 py-4">Plan Name</th>
                 <th className="px-6 py-4">Price</th>
                 <th className="px-6 py-4">Storage Quota</th>
                 <th className="px-6 py-4">Duration</th>
                 <th className="px-6 py-4">Subscribers</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading plans...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-500">Loading plans...</td></tr>
               ) : plans.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">No active plans found.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-500">{debouncedSearch ? 'No plans found matching your search.' : 'No active plans found.'}</td></tr>
               ) : (
-                plans.map((plan: any) => (
+                plans.map((plan: any, index: number) => (
                   <tr key={plan.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs font-medium text-slate-500">
+                      {(pagination.page - 1) * pagination.limit + index + 1}
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{plan.name}</td>
                     <td className="px-6 py-4">${parseFloat(plan.price).toFixed(2)}</td>
                     <td className="px-6 py-4">{plan.maxStorageMb} MB</td>
@@ -224,51 +317,76 @@ export default function AdminPlans() {
                         <Badge variant="outline" className="text-slate-500">Inactive</Badge>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right flex justify-end items-center gap-1.5">
-                      {/* Edit Button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        onClick={() => handleStartEdit(plan)}
-                      >
-                        <Edit3 className="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
+                    <td className="px-6 py-4 text-left">
+                      <div className="flex items-center justify-start gap-1">
+                        {/* Edit Button */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleStartEdit(plan)}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                              <span className="sr-only">Edit Plan</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit Plan</TooltipContent>
+                        </Tooltip>
 
-                      {/* Activate / Deactivate Button */}
-                      {plan.status === 'ACTIVE' ? (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          onClick={() => deactivateMutation.mutate(plan.id)}
-                          disabled={deactivateMutation.isPending}
-                        >
-                          Deactivate
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          onClick={() => activateMutation.mutate(plan.id)}
-                          disabled={activateMutation.isPending}
-                        >
-                          Activate
-                        </Button>
-                      )}
+                        {/* Activate / Deactivate Button */}
+                        {plan.status === 'ACTIVE' ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={() => deactivateMutation.mutate(plan.id)}
+                                disabled={deactivateMutation.isPending}
+                              >
+                                <PowerOff className="h-4 w-4" />
+                                <span className="sr-only">Deactivate Plan</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Deactivate Plan</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                onClick={() => activateMutation.mutate(plan.id)}
+                                disabled={activateMutation.isPending}
+                              >
+                                <Power className="h-4 w-4" />
+                                <span className="sr-only">Activate Plan</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Activate Plan</TooltipContent>
+                          </Tooltip>
+                        )}
 
-                      {/* Delete Button */}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                        onClick={() => handleDeleteClick(plan)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        Delete
-                      </Button>
+                        {/* Delete Button */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                              onClick={() => handleDeleteClick(plan)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete Plan</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete Plan</TooltipContent>
+                        </Tooltip>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -276,6 +394,66 @@ export default function AdminPlans() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Driven Pagination Bar */}
+        {pagination.total > 0 && (
+          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-slate-500">
+              Showing <span className="font-medium text-slate-700">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
+              <span className="font-medium text-slate-700">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+              <span className="font-medium text-slate-700">{pagination.total}</span> plans
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="First page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+                <span className="sr-only">First page</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Previous page</span>
+              </Button>
+              <span className="text-xs font-semibold px-3 py-1.5 bg-white rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                disabled={currentPage >= pagination.totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Next page</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={currentPage >= pagination.totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+                <span className="sr-only">Last page</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* =========================================================================
@@ -319,7 +497,16 @@ export default function AdminPlans() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Storage Quota (MB)</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Storage Quota (MB)</label>
+                {editForm.maxStorageMb && !isNaN(Number(editForm.maxStorageMb)) && Number(editForm.maxStorageMb) > 0 && (
+                  <span className="text-xs text-blue-600 dark:text-blue-400 font-mono font-medium">
+                    ≈ {Number(editForm.maxStorageMb) >= 1024 
+                        ? (parseFloat(editForm.maxStorageMb) / 1024).toFixed(1).replace(/\.0$/, '') 
+                        : (parseFloat(editForm.maxStorageMb) / 1024).toFixed(2).replace(/0$/, '')} GB
+                  </span>
+                )}
+              </div>
               <Input
                 required
                 type="number"
@@ -327,6 +514,27 @@ export default function AdminPlans() {
                 onChange={(e) => setEditForm({ ...editForm, maxStorageMb: e.target.value })}
                 placeholder="1024"
               />
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-xs text-slate-400 select-none">Presets:</span>
+                {STORAGE_PRESETS.map((preset) => {
+                  const isSelected = editForm.maxStorageMb === preset.value.toString();
+                  return (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, maxStorageMb: preset.value.toString() })}
+                      className={cn(
+                        "px-2.5 py-1 text-xs rounded-md font-medium transition-colors border cursor-pointer",
+                        isSelected
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700"
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -461,6 +669,7 @@ export default function AdminPlans() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

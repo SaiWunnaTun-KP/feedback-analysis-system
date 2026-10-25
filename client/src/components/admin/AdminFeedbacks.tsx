@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedbacksApi } from '@/services/api';
 import { Card } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Trash2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Trash2 } from 'lucide-react';
 
 interface AdminFeedbacksProps {
   initialFeedbackId?: number | null;
@@ -19,6 +19,7 @@ interface AdminFeedbacksProps {
 export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedback }: AdminFeedbacksProps = {}) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,46 +28,28 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
   const [replyMessage, setReplyMessage] = useState('');
   const ITEMS_PER_PAGE = 10;
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: response, isLoading } = useQuery({
-    queryKey: ['adminFeedbacks'],
-    queryFn: () => feedbacksApi.getAll(),
+    queryKey: ['adminFeedbacks', { page: currentPage, limit: ITEMS_PER_PAGE, search: debouncedSearch, status: statusFilter, sortOrder }],
+    queryFn: () => feedbacksApi.getAll({ page: currentPage, limit: ITEMS_PER_PAGE, search: debouncedSearch, status: statusFilter, sortOrder }),
   });
 
   const feedbacks = response?.data || [];
-
-  // When navigated from Manage Users with an initialFeedbackId, auto-open that feedback
-  React.useEffect(() => {
-    if (initialFeedbackId && feedbacks.length > 0) {
-      const target = feedbacks.find((f: any) => f.feedbackId === initialFeedbackId);
-      if (target) {
-        setSelectedFeedback(target);
-      }
-    }
-  }, [initialFeedbackId, feedbacks]);
-  
-  const filteredFeedbacks = feedbacks.filter((f: any) => {
-    const matchesSearch = f.subject.toLowerCase().includes(search.toLowerCase()) || 
-                          f.message.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || f.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  }).sort((a: any, b: any) => {
-    const dateA = new Date(a.createdAt).getTime();
-    const dateB = new Date(b.createdAt).getTime();
-    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-  });
-
-  const totalPages = Math.ceil(filteredFeedbacks.length / ITEMS_PER_PAGE);
-  const paginatedFeedbacks = filteredFeedbacks.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE, 
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // Reset to page 1 if filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [search, statusFilter]);
-
-  const pendingCount = feedbacks.filter((f: any) => f.status === 'pending').length;
+  const pagination = response?.pagination || {
+    total: feedbacks.length,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+    totalPages: Math.ceil(feedbacks.length / ITEMS_PER_PAGE) || 1,
+  };
+  const pendingCount = response?.pendingCount ?? feedbacks.filter((f: any) => f.status === 'pending').length;
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number, status: 'pending' | 'sent' | 'replied' }) => feedbacksApi.updateStatus(id, status),
@@ -131,7 +114,7 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
         </div>
         
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
@@ -159,10 +142,10 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4">No.</th>
+                <th className="px-6 py-4 w-16">No.</th>
                 <th className="px-6 py-4">Subject</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}>
+                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => { setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); setCurrentPage(1); }}>
                   <div className="flex items-center gap-2">
                     Created At
                     <ArrowUpDown className="h-4 w-4 text-slate-400" />
@@ -174,18 +157,25 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading feedbacks...</td></tr>
-              ) : paginatedFeedbacks.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">No feedbacks found.</td></tr>
+              ) : feedbacks.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">{debouncedSearch ? 'No feedbacks found matching your search.' : 'No feedbacks found.'}</td></tr>
               ) : (
-                paginatedFeedbacks.map((feedback: any, index: number) => (
+                feedbacks.map((feedback: any, index: number) => (
                   <tr key={feedback.feedbackId} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedFeedback(feedback)}>
-                    <td className="px-6 py-4 font-medium text-slate-500">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                    <td className="px-6 py-4 font-mono text-xs font-medium text-slate-500">
+                      {(pagination.page - 1) * pagination.limit + index + 1}
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{feedback.subject}</td>
                     <td className="px-6 py-4">{getStatusBadge(feedback.status)}</td>
                     <td className="px-6 py-4 text-slate-500">{new Date(feedback.createdAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedFeedback(feedback); }}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40 font-medium"
+                          onClick={(e) => { e.stopPropagation(); setSelectedFeedback(feedback); }}
+                        >
                           View
                         </Button>
                         <Button 
@@ -205,29 +195,61 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
           </table>
         </div>
         
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+        {/* Server-Driven Pagination Bar */}
+        {pagination.total > 0 && (
+          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
-              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredFeedbacks.length)} of {filteredFeedbacks.length} feedbacks
+              Showing <span className="font-medium text-slate-700">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
+              <span className="font-medium text-slate-700">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+              <span className="font-medium text-slate-700">{pagination.total}</span> feedbacks
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                size="icon"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="First page"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                <ChevronsLeft className="h-4 w-4" />
+                <span className="sr-only">First page</span>
               </Button>
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Previous page"
               >
-                Next
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Previous page</span>
+              </Button>
+              <span className="text-xs font-semibold px-3 py-1.5 bg-white rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                disabled={currentPage >= pagination.totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Next page"
+              >
                 <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Next page</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={currentPage >= pagination.totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+                <span className="sr-only">Last page</span>
               </Button>
             </div>
           </div>

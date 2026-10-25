@@ -170,9 +170,9 @@ export default function AdminLoginPage() {
     : 0;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-slate-100 px-4 py-8 relative overflow-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#030712] text-white px-4 py-8 relative overflow-hidden selection:bg-indigo-500/30 selection:text-indigo-200">
       {/* Subtle background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-indigo-600/10 blur-[130px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-indigo-600/15 blur-[130px] rounded-full pointer-events-none" />
 
       {/* Brand Header */}
       <div className="flex flex-col items-center mb-6 z-10">
@@ -184,27 +184,27 @@ export default function AdminLoginPage() {
             InsightRetail
           </span>
         </Link>
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
           <ShieldAlert size={12} className="text-indigo-400" />
           <span>System Administration Portal</span>
         </div>
       </div>
 
       {/* Main Card */}
-      <Card className="w-full max-w-md shadow-2xl border-slate-800 bg-slate-900/90 backdrop-blur-xl z-10 text-slate-100">
+      <Card className="w-full max-w-md shadow-2xl border border-white/10 bg-[#0d1527]/95 backdrop-blur-xl z-10 text-white">
         <CardHeader className="text-center space-y-3 pb-4">
           <div className="flex justify-center">
             <div className={`p-3.5 rounded-2xl border shadow-inner transition-colors ${
               isLockedOut
                 ? 'bg-red-950/80 text-red-400 border-red-700/50'
-                : 'bg-indigo-950/80 text-indigo-400 border-indigo-500/20'
+                : 'bg-indigo-950/80 text-indigo-400 border-indigo-500/30'
             }`}>
               {isLockedOut ? <Lock size={26} className="animate-pulse" /> : <Lock size={26} />}
             </div>
           </div>
           <div className="space-y-1">
             <CardTitle className="text-2xl font-bold tracking-tight text-white">Admin Sign In</CardTitle>
-            <CardDescription className="text-slate-400 text-sm">
+            <CardDescription className="text-white/60 text-sm">
               Authorized personnel only. Enter administrator credentials.
             </CardDescription>
           </div>
@@ -268,11 +268,11 @@ export default function AdminLoginPage() {
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-300" htmlFor="admin-email">
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/70" htmlFor="admin-email">
                 Admin Email
               </label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
                 <Input
                   id="admin-email"
                   type="email"
@@ -281,19 +281,19 @@ export default function AdminLoginPage() {
                   placeholder="admin@insightretail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={`pl-9 bg-slate-950/70 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-indigo-500 transition-opacity ${
-                    isLockedOut ? 'opacity-50 cursor-not-allowed bg-slate-900 border-slate-800' : ''
+                  className={`pl-9 bg-black/40 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-indigo-500 focus-visible:border-indigo-500/60 transition-opacity ${
+                    isLockedOut ? 'opacity-50 cursor-not-allowed bg-black/60 border-white/10' : ''
                   }`}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-300" htmlFor="admin-password">
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/70" htmlFor="admin-password">
                 Password
               </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
                 <Input
                   id="admin-password"
                   type="password"
@@ -302,8 +302,8 @@ export default function AdminLoginPage() {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`pl-9 bg-slate-950/70 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-indigo-500 transition-opacity ${
-                    isLockedOut ? 'opacity-50 cursor-not-allowed bg-slate-900 border-slate-800' : ''
+                  className={`pl-9 bg-black/40 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-indigo-500 focus-visible:border-indigo-500/60 transition-opacity ${
+                    isLockedOut ? 'opacity-50 cursor-not-allowed bg-black/60 border-white/10' : ''
                   }`}
                 />
               </div>
@@ -315,7 +315,7 @@ export default function AdminLoginPage() {
               disabled={isLockedOut || isLoading}
               className={`w-full font-semibold transition-all duration-150 h-10 mt-2 ${
                 isLockedOut
-                  ? 'bg-slate-800/80 border border-red-900/50 text-red-300 cursor-not-allowed hover:bg-slate-800/80'
+                  ? 'bg-white/5 border border-red-900/50 text-red-300 cursor-not-allowed hover:bg-white/5'
                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30'
               }`}
             >
@@ -339,8 +339,8 @@ export default function AdminLoginPage() {
           </form>
 
           {/* Security Notice Box */}
-          <div className="mt-4 p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 text-xs leading-relaxed space-y-1">
-            <div className="flex items-center gap-1.5 text-slate-300 font-semibold">
+          <div className="mt-4 p-3.5 rounded-xl bg-black/40 border border-white/10 text-white/60 text-xs leading-relaxed space-y-1">
+            <div className="flex items-center gap-1.5 text-white/80 font-semibold">
               <ShieldCheck size={13} className="text-indigo-400" />
               <span>Access & Security Policy</span>
             </div>
@@ -350,10 +350,10 @@ export default function AdminLoginPage() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-2 pt-0 pb-6 border-t border-slate-800/80 mt-2 pt-4">
+        <CardFooter className="flex flex-col gap-2 pt-0 pb-6 border-t border-white/10 mt-2 pt-4">
           <Link
             to="/login"
-            className="text-xs text-slate-400 hover:text-indigo-300 transition-colors flex items-center justify-center gap-1.5"
+            className="text-xs text-white/60 hover:text-indigo-300 transition-colors flex items-center justify-center gap-1.5"
           >
             <ArrowLeft size={13} />
             <span>Not an admin? Return to Retail Manager Login</span>

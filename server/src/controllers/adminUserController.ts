@@ -29,7 +29,8 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
       conditions.push(
         or(
           ilike(users.username, searchTerm),
-          ilike(users.email, searchTerm)
+          ilike(users.email, searchTerm),
+          ilike(users.companyName, searchTerm)
         )
       );
     }
@@ -37,7 +38,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const totalCountResult = await db.select({ count: count() }).from(users).where(whereClause);
-    const totalCount = totalCountResult[0].count;
+    const totalCount = Number(totalCountResult[0]?.count || 0);
 
     const data = await db.select({
       id: users.id,
@@ -54,7 +55,8 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
       pagination: {
         total: totalCount,
         page: pageNum,
-        limit: limitNum
+        limit: limitNum,
+        totalPages: Math.ceil(totalCount / limitNum) || 1
       }
     });
   } catch (error) {

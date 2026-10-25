@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../database/index.js';
 import { plans, activeSubscriptions, planAnnouncements, users } from '../database/schema.js';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, ilike } from 'drizzle-orm';
 import { authenticate, optionalAuthenticate, requireAdmin } from '../middlewares/authMiddleware.js';
 import { createStripeProduct, createStripePrice } from '../services/stripe.service.js';
 import { sendPlanAnnouncementEmail } from '../services/emailService.js';
@@ -9,10 +9,69 @@ import { sendPlanAnnouncementEmail } from '../services/emailService.js';
 const router = Router();
 
 // GET /api/plans & GET /api/admin/plans
-// Public/Auth'd to see available active plans (Admins see all with subscriber count)
+// Public/Auth'd to see available active plans (Admins see all with subscriber count, search & pagination)
 router.get('/', optionalAuthenticate, async (req: any, res) => {
   try {
     if (req.user?.role === 'ADMIN') {
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const search = req.query.search ? (req.query.search as string).trim() : undefined;
+
+      const whereClause = search ? ilike(plans.name, `%${search}%`) : undefined;
+
+      // If server-driven pagination/search is requested
+      if (page !== undefined || limit !== undefined || search !== undefined) {
+        const currentPage = Math.max(1, page || 1);
+        const pageSize = Math.max(1, limit || 10);
+        const offset = (currentPage - 1) * pageSize;
+
+        // Total count matching search query
+        const countQuery = db.select({ total: count() }).from(plans);
+        if (whereClause) {
+          countQuery.where(whereClause);
+        }
+        const [totalResult] = await countQuery;
+        const total = Number(totalResult?.total || 0);
+
+        // Paginated plans query
+        const dataQuery = db.select().from(plans);
+        if (whereClause) {
+          dataQuery.where(whereClause);
+        }
+        const pagedPlans = await dataQuery.orderBy(plans.id).limit(pageSize).offset(offset);
+
+        // Active subscriber counts for mapping
+        const subsCounts = await db
+          .select({
+            planId: activeSubscriptions.planId,
+            count: count(),
+          })
+          .from(activeSubscriptions)
+          .where(eq(activeSubscriptions.status, 'ACTIVE'))
+          .groupBy(activeSubscriptions.planId);
+
+        const countMap = new Map<number, number>();
+        for (const row of subsCounts) {
+          countMap.set(row.planId, Number(row.count));
+        }
+
+        const plansWithSubscribers = pagedPlans.map((p) => ({
+          ...p,
+          activeSubscribers: countMap.get(p.id) || 0,
+        }));
+
+        return res.json({
+          data: plansWithSubscribers,
+          pagination: {
+            total,
+            page: currentPage,
+            limit: pageSize,
+            totalPages: Math.ceil(total / pageSize) || 1,
+          },
+        });
+      }
+
+      // Backward compatible: return all plans with subscriber counts
       const allPlans = await db.select().from(plans).orderBy(plans.id);
       
       const subsCounts = await db

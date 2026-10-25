@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { 
-  Search, ChevronLeft, ChevronRight, HardDrive, Database, 
+  Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, HardDrive, Database, 
   MessageSquare, User, AlertTriangle, Trash2, ExternalLink, Mail
 } from 'lucide-react';
 
@@ -62,7 +62,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
   const [suspendReasonCategory, setSuspendReasonCategory] = useState<string>('terms_violation');
   const [suspendCustomReason, setSuspendCustomReason] = useState<string>(PREDEFINED_SUSPENSION_REASONS[0].description);
 
-  const ITEMS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 10;
 
   const handleOpenSuspend = (user: any) => {
     setSuspendConfirmUser(user);
@@ -110,7 +110,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
 
   const users = response?.data || [];
   const pagination = response?.pagination || { total: 0, page: 1, limit: ITEMS_PER_PAGE };
-  const totalPages = Math.ceil(pagination.total / pagination.limit);
+  const totalPages = pagination.totalPages || Math.ceil(pagination.total / pagination.limit) || 1;
   const userDetail = detailResponse?.data;
 
   const statusMutation = useMutation({
@@ -182,7 +182,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input 
-              placeholder="Search name or email..." 
+              placeholder="Search name, email, or company..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -196,7 +196,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4">No.</th>
+                <th className="px-6 py-4 w-16">No.</th>
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">Company</th>
@@ -209,18 +209,25 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
               {isLoading ? (
                 <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading users...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">No users found.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">{debouncedSearch ? 'No users found matching your search.' : 'No users found.'}</td></tr>
               ) : (
                 users.map((user: any, index: number) => (
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedUserId(user.id)}>
-                    <td className="px-6 py-4 font-medium text-slate-500">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                    <td className="px-6 py-4 font-mono text-xs font-medium text-slate-500">
+                      {(pagination.page - 1) * pagination.limit + index + 1}
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-900">{user.username}</td>
                     <td className="px-6 py-4 text-slate-600">{user.email}</td>
                     <td className="px-6 py-4 text-slate-600">{user.companyName || '—'}</td>
                     <td className="px-6 py-4">{getStatusBadge(user.status)}</td>
                     <td className="px-6 py-4 text-slate-500">{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedUserId(user.id); }}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40 font-medium"
+                        onClick={(e) => { e.stopPropagation(); setSelectedUserId(user.id); }}
+                      >
                         View Details
                       </Button>
                     </td>
@@ -231,29 +238,61 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
           </table>
         </div>
         
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+        {/* Server-Driven Pagination Bar */}
+        {pagination.total > 0 && (
+          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
-              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, pagination.total)} of {pagination.total} users
+              Showing <span className="font-medium text-slate-700">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
+              <span className="font-medium text-slate-700">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+              <span className="font-medium text-slate-700">{pagination.total}</span> users
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                size="icon"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="First page"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                <ChevronsLeft className="h-4 w-4" />
+                <span className="sr-only">First page</span>
               </Button>
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Previous page"
               >
-                Next
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Previous page</span>
+              </Button>
+              <span className="text-xs font-semibold px-3 py-1.5 bg-white rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
+                Page {pagination.page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Next page"
+              >
                 <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Next page</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage >= totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                title="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+                <span className="sr-only">Last page</span>
               </Button>
             </div>
           </div>

@@ -60,7 +60,19 @@ export const authApi = {
 };
 
 export const plansApi = {
-  getAll: () => apiFetch('/plans'),
+  getAll: (params?: { page?: number; limit?: number; search?: string } | any): Promise<any> => {
+    if (!params || params.queryKey || typeof params !== 'object') {
+      return apiFetch('/plans');
+    }
+    const { page, limit, search } = params;
+    const queryParams: Record<string, string> = {};
+    if (page !== undefined && page !== null) queryParams.page = String(page);
+    if (limit !== undefined && limit !== null) queryParams.limit = String(limit);
+    if (search !== undefined && search !== null && search !== '') queryParams.search = String(search);
+
+    const query = new URLSearchParams(queryParams).toString();
+    return apiFetch(`/plans${query ? `?${query}` : ''}`);
+  },
   create: (data: any) => apiFetch('/plans', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: number, data: any) => apiFetch(`/admin/plans/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => apiFetch(`/plans/${id}`, { method: 'DELETE' }),
@@ -131,8 +143,15 @@ export const profileApi = {
 export const feedbacksApi = {
   submit: (data: { subject: string; message: string }) => apiFetch('/feedbacks', { method: 'POST', body: JSON.stringify(data) }),
   getMyFeedbacks: () => apiFetch('/feedbacks/my'),
-  getAll: (params?: Record<string, string>) => {
-    const searchParams = new URLSearchParams(params || {});
+  getAll: (params?: Record<string, any>) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          searchParams.append(k, String(v));
+        }
+      });
+    }
     const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
     return apiFetch(`/feedbacks${query}`);
   },
