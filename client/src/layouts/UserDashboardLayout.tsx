@@ -12,7 +12,8 @@ import {
   BarChart3,
   CreditCard,
   Settings,
-  HelpCircle
+  HelpCircle,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollToTopButton } from '../components/ScrollToTopButton';
@@ -33,6 +34,7 @@ export function UserDashboardLayout() {
     { name: 'Subscription & Plans', path: '/dashboard/subscriptions', icon: CreditCard },
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
     { name: 'Help & Support', path: '/dashboard/help', icon: HelpCircle },
+    { name: 'Terms & Policies', path: '/dashboard/terms', icon: FileText },
   ];
 
   return (

@@ -19,8 +19,11 @@ import Reports from './pages/user/Reports';
 import Subscriptions from './pages/user/Subscriptions';
 import Settings from './pages/user/Settings';
 import HelpSupport from './pages/user/HelpSupport';
+import UserPolicies from './pages/user/UserPolicies';
 import AdminDashboard from './pages/AdminDashboard';
 import LandingPage from './pages/LandingPage';
+import PublicPoliciesPage from './pages/PublicPoliciesPage';
+import { ScrollToTop } from './components/ScrollToTop';
 
 function App() {
   return (
@@ -28,9 +31,12 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <Routes>
-              {/* Public Landing Page - Always accessible to both public and authenticated users */}
+              {/* Public Pages */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/terms" element={<PublicPoliciesPage defaultTab="terms" />} />
+              <Route path="/privacy" element={<PublicPoliciesPage defaultTab="privacy" />} />
 
               {/* Public Auth Routes - Restricted from Authenticated Users (AuthRedirect guard) */}
               <Route element={<PublicRoute />}>
@@ -48,6 +54,7 @@ function App() {
                   <Route path="/dashboard/subscriptions" element={<Subscriptions />} />
                   <Route path="/dashboard/settings" element={<Settings />} />
                   <Route path="/dashboard/help" element={<HelpSupport />} />
+                  <Route path="/dashboard/terms" element={<UserPolicies />} />
                 </Route>
               </Route>
 
@@ -59,6 +66,7 @@ function App() {
                   <Route path="/admin/feedbacks" element={<AdminDashboard tab="feedbacks" />} />
                   <Route path="/admin/users" element={<AdminDashboard tab="users" />} />
                   <Route path="/admin/faqs" element={<AdminDashboard tab="faqs" />} />
+                  <Route path="/admin/terms" element={<AdminDashboard tab="policies" />} />
                 </Route>
               </Route>
 

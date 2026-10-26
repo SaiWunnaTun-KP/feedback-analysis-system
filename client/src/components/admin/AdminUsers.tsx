@@ -252,7 +252,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                 size="icon"
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage <= 1 || isLoading}
-                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
                 title="First page"
               >
                 <ChevronsLeft className="h-4 w-4" />
@@ -263,13 +263,13 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                 size="icon"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1 || isLoading}
-                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
                 title="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
                 <span className="sr-only">Previous page</span>
               </Button>
-              <span className="text-xs font-semibold px-3 py-1.5 bg-white rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
+              <span className="text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-100 rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
                 Page {pagination.page} of {totalPages}
               </span>
               <Button
@@ -277,7 +277,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                 size="icon"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages || isLoading}
-                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
                 title="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -288,7 +288,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                 size="icon"
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage >= totalPages || isLoading}
-                className="h-8 w-8 text-slate-600 hover:text-slate-900"
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
                 title="Last page"
               >
                 <ChevronsRight className="h-4 w-4" />

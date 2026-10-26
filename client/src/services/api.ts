@@ -162,7 +162,18 @@ export const feedbacksApi = {
 
 export const faqsApi = {
   getPublic: () => apiFetch('/faqs'),
-  getAllAdmin: () => apiFetch('/admin/faqs'),
+  getAllAdmin: (params?: Record<string, any>) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          searchParams.append(key, String(val));
+        }
+      });
+    }
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiFetch(`/admin/faqs${query}`);
+  },
   getById: (id: number) => apiFetch(`/admin/faqs/${id}`),
   create: (data: { question: string; answer: string; sortOrder?: number; isVisible?: boolean }) => 
     apiFetch('/admin/faqs', { method: 'POST', body: JSON.stringify(data) }),
@@ -182,4 +193,11 @@ export const adminUsersApi = {
   update: (id: number, data: any) => apiFetch(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   updateStatus: (id: number, status: string, reason?: string) => apiFetch(`/admin/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }),
   getFeedbacks: (id: number, page: number = 1, limit: number = 20) => apiFetch(`/admin/users/${id}/feedbacks?page=${page}&limit=${limit}`),
+};
+
+export const policiesApi = {
+  getAll: () => apiFetch('/policies'),
+  get: (type: 'terms' | 'privacy') => apiFetch(`/policies/${type}`),
+  update: (type: 'terms' | 'privacy', data: { title?: string; content: string; version?: string }) =>
+    apiFetch(`/admin/policies/${type}`, { method: 'PUT', body: JSON.stringify(data) }),
 };

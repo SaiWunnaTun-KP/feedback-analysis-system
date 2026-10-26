@@ -4,9 +4,10 @@ import AdminPlans from '@/components/admin/AdminPlans';
 import AdminFeedbacks from '@/components/admin/AdminFeedbacks';
 import AdminUsers from '@/components/admin/AdminUsers';
 import AdminFaqs from '@/components/admin/AdminFaqs';
+import AdminPolicies from '@/components/admin/AdminPolicies';
 
 interface AdminDashboardProps {
-  tab?: 'plans' | 'feedbacks' | 'users' | 'faqs';
+  tab?: 'plans' | 'feedbacks' | 'users' | 'faqs' | 'policies';
 }
 
 export default function AdminDashboard({ tab = 'plans' }: AdminDashboardProps) {
@@ -42,6 +43,7 @@ export default function AdminDashboard({ tab = 'plans' }: AdminDashboardProps) {
         <AdminUsers onNavigateToFeedback={handleNavigateToFeedback} />
       )}
       {tab === 'faqs' && <AdminFaqs />}
+      {tab === 'policies' && <AdminPolicies />}
     </div>
   );
 }

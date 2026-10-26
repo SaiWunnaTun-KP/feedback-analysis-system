@@ -127,3 +127,14 @@ export const userAnnouncementViews = pgTable('user_announcement_views', {
   primaryKey({ columns: [table.userId, table.announcementId] })
 ]);
 
+export const policies = pgTable('policies', {
+  id: serial('id').primaryKey(),
+  type: varchar('type', { length: 50 }).notNull().unique(), // 'terms' | 'privacy'
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  version: varchar('version', { length: 50 }).default('1.0').notNull(),
+  updatedBy: integer('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+

@@ -42,12 +42,21 @@ router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
       if (row.sentiment === 'Neutral') neutralCount += count;
     });
 
-    const healthScore = totalFeedbacks > 0 ? Math.round((positiveCount / totalFeedbacks) * 100) : 0;
+    const positivePct = totalFeedbacks > 0 ? Math.round((positiveCount / totalFeedbacks) * 100) : 0;
+    const negativePct = totalFeedbacks > 0 ? Math.round((negativeCount / totalFeedbacks) * 100) : 0;
+    const neutralPct = totalFeedbacks > 0 ? Math.max(0, 100 - positivePct - negativePct) : 0;
+
+    // Option A: 5.0 for Positive, 3.0 for Neutral, 1.0 for Negative
+    const averageScore = totalFeedbacks > 0 
+      ? Number(((positiveCount * 5.0 + neutralCount * 3.0 + negativeCount * 1.0) / totalFeedbacks).toFixed(1))
+      : 0;
+
+    const healthScore = positivePct;
 
     const sentimentBreakdown = [
-      { name: 'Positive', value: positiveCount, fill: '#10b981' },
-      { name: 'Neutral', value: neutralCount, fill: '#f59e0b' },
-      { name: 'Negative', value: negativeCount, fill: '#ef4444' }
+      { name: 'Positive', value: positiveCount, fill: '#10b981', pct: positivePct },
+      { name: 'Negative', value: negativeCount, fill: '#f43f5e', pct: negativePct },
+      { name: 'Neutral', value: neutralCount, fill: '#38bdf8', pct: neutralPct }
     ];
 
     // Top / Critical Products
@@ -65,6 +74,8 @@ router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
 
     let topProduct = 'N/A';
     let criticalProduct = 'N/A';
+    let topProductDetails: any = null;
+    let criticalProductDetails: any = null;
     let maxPos = -1;
     let maxNeg = -1;
 
@@ -79,24 +90,43 @@ router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
       const nCount = Number(row.negative_count);
       const total = Number(row.total_count);
 
+      const posPct = total > 0 ? (pCount / total) * 100 : 0;
+      const negPct = total > 0 ? (nCount / total) * 100 : 0;
+      const neuCount = Math.max(0, total - pCount - nCount);
+      const prodScore = total > 0 
+        ? Number(((pCount * 5.0 + neuCount * 3.0 + nCount * 1.0) / total).toFixed(1))
+        : 0;
+
       if (pCount > maxPos) {
         maxPos = pCount;
         topProduct = row.product_name;
+        topProductDetails = {
+          name: row.product_name,
+          positiveCount: pCount,
+          totalReviews: total,
+          positivePct: Math.round(posPct),
+          score: prodScore
+        };
       }
       if (nCount > maxNeg) {
         maxNeg = nCount;
         criticalProduct = row.product_name;
+        criticalProductDetails = {
+          name: row.product_name,
+          negativeCount: nCount,
+          totalReviews: total,
+          negativePct: Math.round(negPct),
+          score: prodScore
+        };
       }
 
       // Product Action Matrix
-      const posPct = total > 0 ? (pCount / total) * 100 : 0;
-      const negPct = total > 0 ? (nCount / total) * 100 : 0;
-
       const productData = {
         name: row.product_name,
         totalReviews: total,
         positivePct: Math.round(posPct),
-        negativePct: Math.round(negPct)
+        negativePct: Math.round(negPct),
+        score: prodScore
       };
 
       if (posPct >= 80) {
@@ -132,8 +162,17 @@ router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {
       executiveOverview: {
         totalFeedbacks,
         healthScore,
+        averageScore,
+        positiveCount,
+        negativeCount,
+        neutralCount,
+        positivePct,
+        negativePct,
+        neutralPct,
         topProduct,
         criticalProduct,
+        topProductDetails,
+        criticalProductDetails,
         sentimentBreakdown
       },
       actionMatrix,

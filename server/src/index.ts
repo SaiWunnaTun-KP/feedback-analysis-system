@@ -14,6 +14,7 @@ import adminUsersRoutes from './routes/adminUsers.js';
 import faqsRoutes from './routes/faqs.js';
 import adminFaqsRoutes from './routes/adminFaqs.js';
 import announcementsRoutes from './routes/announcements.js';
+import policiesRoutes from './routes/policies.js';
 
 dotenv.config();
 
@@ -51,6 +52,8 @@ app.use('/api/feedbacks', feedbacksRoutes);
 app.use('/api/admin/users', adminUsersRoutes);
 app.use('/api/faqs', faqsRoutes);
 app.use('/api/admin/faqs', adminFaqsRoutes);
+app.use('/api/policies', policiesRoutes);
+app.use('/api/admin/policies', policiesRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

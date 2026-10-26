@@ -1214,9 +1214,21 @@ export default function LandingPage() {
               </p>
               <p className="text-xs font-medium text-foreground">support@insightretail.ai</p>
               <div className="pt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                <span>Terms of Service</span>
+                <Link
+                  to="/terms?tab=terms"
+                  onClick={() => window.scrollTo(0, 0)}
+                  className="hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                >
+                  Terms of Service
+                </Link>
                 <span>•</span>
-                <span>Privacy Policy</span>
+                <Link
+                  to="/terms?tab=privacy"
+                  onClick={() => window.scrollTo(0, 0)}
+                  className="hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
               </div>
             </div>
           </div>

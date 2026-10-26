@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { faqsApi } from '@/services/api';
 import { Card } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Edit3, Trash2, Eye, EyeOff, Search } from 'lucide-react';
+import { Plus, Edit3, Trash2, Eye, EyeOff, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface FaqItem {
   faqId: number;
@@ -23,7 +23,10 @@ interface FaqItem {
 
 export default function AdminFaqs() {
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(10);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FaqItem | null>(null);
@@ -35,19 +38,27 @@ export default function AdminFaqs() {
     isVisible: true,
   });
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const { data: response, isLoading } = useQuery({
-    queryKey: ['adminFaqs'],
-    queryFn: faqsApi.getAllAdmin,
+    queryKey: ['adminFaqs', { page: currentPage, limit, search: debouncedSearch }],
+    queryFn: () => faqsApi.getAllAdmin({ page: currentPage, limit, search: debouncedSearch }),
   });
 
-  const faqs: FaqItem[] = response?.data || [];
-
-  const filteredFaqs = faqs.filter((faq) => {
-    return (
-      faq.question.toLowerCase().includes(search.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  const faqs: FaqItem[] = Array.isArray(response) ? response : (response?.data || []);
+  const pagination = response?.pagination || {
+    total: faqs.length,
+    page: currentPage,
+    limit: limit,
+    totalPages: Math.ceil(faqs.length / limit) || 1,
+  };
 
   const createMutation = useMutation({
     mutationFn: faqsApi.create,
@@ -177,14 +188,14 @@ export default function AdminFaqs() {
                     Loading FAQs...
                   </td>
                 </tr>
-              ) : filteredFaqs.length === 0 ? (
+              ) : faqs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                    {search ? `No FAQs matching "${search}" found.` : 'No FAQs found. Create your first FAQ!'}
+                    {debouncedSearch ? `No FAQs matching "${debouncedSearch}" found.` : 'No FAQs found. Create your first FAQ!'}
                   </td>
                 </tr>
               ) : (
-                filteredFaqs.map((faq) => (
+                faqs.map((faq) => (
                   <tr key={faq.faqId} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-mono text-slate-500 text-xs">
                       #{faq.sortOrder}
@@ -254,6 +265,66 @@ export default function AdminFaqs() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Driven Pagination Bar */}
+        {pagination.total > 0 && (
+          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-slate-500">
+              Showing <span className="font-medium text-slate-700">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
+              <span className="font-medium text-slate-700">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+              <span className="font-medium text-slate-700">{pagination.total}</span> FAQs
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
+                title="First page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+                <span className="sr-only">First page</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1 || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Previous page</span>
+              </Button>
+              <span className="text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-100 rounded-md text-slate-700 border border-slate-200 shadow-xs select-none">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+                disabled={currentPage >= pagination.totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
+                title="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Next page</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={currentPage >= pagination.totalPages || isLoading}
+                className="h-8 w-8 text-slate-600 hover:text-slate-900 border-slate-200 bg-white dark:bg-slate-100"
+                title="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+                <span className="sr-only">Last page</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Create / Edit FAQ Dialog */}

@@ -118,49 +118,250 @@ export default function Reports() {
 
       {selectedDataset && overviewData ? (
         <>
-          {/* Executive Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="shadow-sm border-slate-200/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <p className="text-sm font-medium text-slate-500">Total Feedbacks</p>
-                  <Target className="h-4 w-4 text-slate-400" />
+          {/* Executive Overview - Modern 3-Column Layout */}
+          {(() => {
+            const executive = overviewData.executiveOverview;
+            const totalFeedbacks = executive.totalFeedbacks || 0;
+            const formattedVolume = totalFeedbacks >= 1000
+              ? `${(totalFeedbacks / 1000).toFixed(1).replace(/\.0$/, '')}k`
+              : totalFeedbacks.toLocaleString();
+
+            const positiveItem = executive.sentimentBreakdown?.find((s: any) => s.name === 'Positive');
+            const negativeItem = executive.sentimentBreakdown?.find((s: any) => s.name === 'Negative');
+            const neutralItem = executive.sentimentBreakdown?.find((s: any) => s.name === 'Neutral');
+
+            const posCount = positiveItem?.value ?? executive.positiveCount ?? 0;
+            const negCount = negativeItem?.value ?? executive.negativeCount ?? 0;
+            const neuCount = neutralItem?.value ?? executive.neutralCount ?? 0;
+            const totalAspects = (posCount + negCount + neuCount) || totalFeedbacks || 1;
+
+            const positivePct = executive.positivePct ?? Math.round((posCount / totalAspects) * 100);
+            const negativePct = executive.negativePct ?? Math.round((negCount / totalAspects) * 100);
+            const neutralPct = executive.neutralPct ?? Math.max(0, 100 - positivePct - negativePct);
+
+            // Option A: 5 for Pos, 3 for Neu, 1 for Neg
+            const avgScore = executive.averageScore !== undefined
+              ? Number(executive.averageScore).toFixed(1)
+              : (totalAspects > 0
+                  ? ((posCount * 5.0 + neuCount * 3.0 + negCount * 1.0) / totalAspects).toFixed(1)
+                  : '0.0');
+
+            const topProductObj = executive.topProductDetails ||
+              allProducts.find((p: any) => p.name === executive.topProduct);
+            const criticalProductObj = executive.criticalProductDetails ||
+              allProducts.find((p: any) => p.name === executive.criticalProduct);
+
+            const topProductName = executive.topProduct || topProductObj?.name || 'N/A';
+            const criticalProductName = executive.criticalProduct || criticalProductObj?.name || 'N/A';
+
+            // SVG Donut Calculations (r=38, C ≈ 238.76)
+            const radius = 38;
+            const circumference = 2 * Math.PI * radius;
+            const posStroke = (positivePct / 100) * circumference;
+            const negStroke = (negativePct / 100) * circumference;
+            const neuStroke = (neutralPct / 100) * circumference;
+
+            const posOffset = 0;
+            const negOffset = -posStroke;
+            const neuOffset = -(posStroke + negStroke);
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                {/* 1. Feedback Volume Card */}
+                <div className="bg-[#f0f4f9] rounded-2xl border border-slate-200/80 p-6 flex flex-col justify-between shadow-sm min-h-[220px]">
+                  <h3 className="text-base font-semibold text-slate-800 tracking-tight">
+                    Feedback volume
+                  </h3>
+                  <div className="flex-1 flex items-center justify-center py-4">
+                    <span className="font-serif text-5xl sm:text-6xl text-slate-900 tracking-tight select-all">
+                      {formattedVolume}
+                    </span>
+                  </div>
+                  <div className="text-xs font-medium text-slate-400">
+                    Total customer reviews processed
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900">{overviewData.executiveOverview.totalFeedbacks}</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-slate-200/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <p className="text-sm font-medium text-slate-500">Overall Health Score</p>
-                  <AlertCircle className="h-4 w-4 text-slate-400" />
+
+                {/* 2. Sentiment Breakdown Card with Donut & Avg Score */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm min-h-[220px] flex flex-col justify-between">
+                  <h3 className="text-base font-semibold text-slate-800 tracking-tight">
+                    Sentiment
+                  </h3>
+                  <div className="flex items-center justify-between gap-4 my-auto py-2">
+                    {/* Left: Percentage Breakdown */}
+                    <div className="space-y-3.5 flex-1 max-w-[150px]">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2.5 font-medium text-slate-700">
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-sm shadow-emerald-200" />
+                          Positive
+                        </span>
+                        <span className="font-semibold text-slate-900">{positivePct}%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2.5 font-medium text-slate-700">
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#fda4af] shadow-sm shadow-rose-200" />
+                          Negative
+                        </span>
+                        <span className="font-semibold text-slate-900">{negativePct}%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2.5 font-medium text-slate-700">
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#93c5fd] shadow-sm shadow-sky-200" />
+                          Neutral
+                        </span>
+                        <span className="font-semibold text-slate-900">{neutralPct}%</span>
+                      </div>
+                    </div>
+
+                    {/* Right: Donut Chart with Average Score inside */}
+                    <div className="relative w-36 h-36 flex items-center justify-center shrink-0">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                        {/* Background subtle ring */}
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r={radius}
+                          stroke="#f1f5f9"
+                          strokeWidth="8"
+                          fill="none"
+                        />
+                        {/* Positive segment */}
+                        {positivePct > 0 && (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r={radius}
+                            stroke="#34d399"
+                            strokeWidth="8"
+                            fill="none"
+                            strokeDasharray={`${Math.max(0, posStroke - 2)} ${circumference}`}
+                            strokeDashoffset={posOffset}
+                            strokeLinecap="round"
+                          />
+                        )}
+                        {/* Negative segment */}
+                        {negativePct > 0 && (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r={radius}
+                            stroke="#fda4af"
+                            strokeWidth="8"
+                            fill="none"
+                            strokeDasharray={`${Math.max(0, negStroke - 2)} ${circumference}`}
+                            strokeDashoffset={negOffset}
+                            strokeLinecap="round"
+                          />
+                        )}
+                        {/* Neutral segment */}
+                        {neutralPct > 0 && (
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r={radius}
+                            stroke="#93c5fd"
+                            strokeWidth="8"
+                            fill="none"
+                            strokeDasharray={`${Math.max(0, neuStroke - 2)} ${circumference}`}
+                            strokeDashoffset={neuOffset}
+                            strokeLinecap="round"
+                          />
+                        )}
+                      </svg>
+
+                      {/* Score inside Donut Ring */}
+                      <div className="absolute inset-0 flex items-center justify-center gap-1.5 pointer-events-none select-none">
+                        <span className="font-serif text-3xl font-bold text-slate-900 leading-none">
+                          {avgScore}
+                        </span>
+                        <div className="flex flex-col text-[10px] text-slate-500 font-medium leading-[1.15] text-left">
+                          <span>average</span>
+                          <span>score</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-xs font-medium text-slate-400">
+                    Weighted 5-star sentiment scale
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-emerald-600">{overviewData.executiveOverview.healthScore}% Positive</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-slate-200/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <p className="text-sm font-medium text-slate-500">Top Product</p>
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+
+                {/* 3. Section 3: Stacked Cards (Top Score & Critical Product) */}
+                <div className="flex flex-col gap-4 h-full">
+                  {/* Top Score Product Card */}
+                  <div className="flex-1 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col justify-between hover:border-emerald-300 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                          <TrendingUp className="h-4 w-4" />
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          Top Score Product
+                        </span>
+                      </div>
+                      {topProductObj?.score ? (
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                          ★ {topProductObj.score}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          Top Rated
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2">
+                      <h4 className="text-base sm:text-lg font-bold text-slate-900 truncate" title={topProductName}>
+                        {topProductName}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                        {topProductObj?.positivePct !== undefined ? (
+                          <span className="text-emerald-600 font-semibold">{topProductObj.positivePct}% Positive</span>
+                        ) : null}
+                        {topProductObj?.totalReviews ? (
+                          <span className="text-slate-400">• {topProductObj.totalReviews} feedbacks</span>
+                        ) : null}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Critical Product Card */}
+                  <div className="flex-1 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col justify-between hover:border-rose-300 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
+                          <AlertCircle className="h-4 w-4" />
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          Critical Product
+                        </span>
+                      </div>
+                      {criticalProductObj?.negativePct ? (
+                        <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
+                          {criticalProductObj.negativePct}% Negative
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
+                          Needs Review
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2">
+                      <h4 className="text-base sm:text-lg font-bold text-slate-900 truncate" title={criticalProductName}>
+                        {criticalProductName}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                        <span className="text-rose-600 font-semibold">Needs Attention</span>
+                        {criticalProductObj?.totalReviews ? (
+                          <span className="text-slate-400">• {criticalProductObj.totalReviews} feedbacks</span>
+                        ) : null}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-lg font-bold text-slate-900 truncate" title={overviewData.executiveOverview.topProduct}>
-                  {overviewData.executiveOverview.topProduct}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-slate-200/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between space-y-0 pb-2">
-                  <p className="text-sm font-medium text-slate-500">Critical Product</p>
-                  <AlertCircle className="h-4 w-4 text-rose-500" />
-                </div>
-                <div className="text-lg font-bold text-slate-900 truncate" title={overviewData.executiveOverview.criticalProduct}>
-                  {overviewData.executiveOverview.criticalProduct}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Doughnut Chart */}

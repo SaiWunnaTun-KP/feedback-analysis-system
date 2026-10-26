@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../database/index.js';
 import { faqs } from '../database/schema.js';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, count, or, ilike } from 'drizzle-orm';
 import { authenticate, requireAdmin } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -10,9 +10,54 @@ router.use(authenticate);
 router.use(requireAdmin);
 
 // GET /api/admin/faqs
-// List all FAQs (including hidden) ordered by sort_order
+// List all FAQs (including hidden) with search and pagination ordered by sort_order
 router.get('/', async (req, res) => {
   try {
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const search = req.query.search ? (req.query.search as string).trim() : undefined;
+
+    let whereClause = undefined;
+    if (search) {
+      const searchTerm = `%${search}%`;
+      whereClause = or(
+        ilike(faqs.question, searchTerm),
+        ilike(faqs.answer, searchTerm)
+      );
+    }
+
+    if (page !== undefined || limit !== undefined || search !== undefined) {
+      const currentPage = Math.max(1, page || 1);
+      const pageSize = Math.max(1, limit || 10);
+      const offset = (currentPage - 1) * pageSize;
+
+      const countQuery = db.select({ total: count() }).from(faqs);
+      if (whereClause) {
+        countQuery.where(whereClause);
+      }
+      const [totalResult] = await countQuery;
+      const total = Number(totalResult?.total || 0);
+
+      const dataQuery = db.select().from(faqs);
+      if (whereClause) {
+        dataQuery.where(whereClause);
+      }
+      const data = await dataQuery
+        .orderBy(asc(faqs.sortOrder), asc(faqs.faqId))
+        .limit(pageSize)
+        .offset(offset);
+
+      return res.json({
+        data,
+        pagination: {
+          total,
+          page: currentPage,
+          limit: pageSize,
+          totalPages: Math.ceil(total / pageSize) || 1,
+        },
+      });
+    }
+
     const list = await db
       .select()
       .from(faqs)

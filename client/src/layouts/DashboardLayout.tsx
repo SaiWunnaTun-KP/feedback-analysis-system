@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   Users,
   HelpCircle,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollToTopButton } from '../components/ScrollToTopButton';
@@ -29,6 +30,7 @@ export function DashboardLayout() {
     { name: 'Manage User Feedbacks', path: '/admin/feedbacks', icon: MessageSquareText },
     { name: 'Manage Users', path: '/admin/users', icon: Users },
     { name: 'Manage FAQs', path: '/admin/faqs', icon: HelpCircle },
+    { name: 'Manage Terms & Policies', path: '/admin/terms', icon: FileText },
   ];
 
   return (
