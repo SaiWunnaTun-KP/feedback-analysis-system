@@ -1,10 +1,197 @@
 import { Router } from 'express';
 import { db } from '../database/index.ts';
 import { datasets, reviews, feedbackResults } from '../database/schema.ts';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import { authenticate } from '../middlewares/authMiddleware.ts';
 
 const router = Router();
+
+export const PRODUCT_MATRIX_CONFIG = {
+  star: {
+    minPositivePct: 75,
+    maxNegativePct: 15,
+  },
+  needsAttention: {
+    minNegativePct: 30,
+  },
+  minVolumeForClassification: 5,
+};
+
+export function classifyProduct(p: { positivePct: number; negativePct: number; total: number }): "star" | "needs_attention" | "mixed" {
+  const { positivePct, negativePct, total } = p;
+  if (total < PRODUCT_MATRIX_CONFIG.minVolumeForClassification) return "mixed";
+  if (positivePct >= PRODUCT_MATRIX_CONFIG.star.minPositivePct && negativePct <= PRODUCT_MATRIX_CONFIG.star.maxNegativePct) {
+    return "star";
+  }
+  if (negativePct >= PRODUCT_MATRIX_CONFIG.needsAttention.minNegativePct || negativePct > positivePct) {
+    return "needs_attention";
+  }
+  return "mixed";
+}
+
+async function getProductMatrixHandler(req: any, res: any) {
+  try {
+    let datasetId = parseInt(req.params.datasetId || req.query.datasetId as string);
+
+    if (!datasetId || isNaN(datasetId)) {
+      // Find latest completed dataset for user
+      const userDatasets = await db
+        .select()
+        .from(datasets)
+        .where(and(eq(datasets.userId, req.user.userId), eq(datasets.status, 'COMPLETED')))
+        .orderBy(desc(datasets.createdAt))
+        .limit(1);
+
+      if (userDatasets.length === 0) {
+        return res.json({
+          tabs: { star: 0, needs_attention: 0, mixed: 0 },
+          products: [],
+          pagination: {
+            page: 1,
+            page_size: 12,
+            total_items: 0,
+            total_pages: 1,
+          },
+        });
+      }
+      datasetId = userDatasets[0].id;
+    } else {
+      const [dataset] = await db
+        .select()
+        .from(datasets)
+        .where(and(eq(datasets.id, datasetId), eq(datasets.userId, req.user.userId)));
+      if (!dataset) {
+        return res.status(404).json({ error: 'Dataset not found or unauthorized' });
+      }
+      if (dataset.status !== 'COMPLETED') {
+        return res.status(400).json({ error: 'Dataset analysis is not completed yet' });
+      }
+    }
+
+    const categoryParam = ((req.query.category as string) || 'needs_attention').toLowerCase();
+    const category = categoryParam === 'needsattention' ? 'needs_attention' : categoryParam;
+    const search = ((req.query.search as string) || '').trim().toLowerCase();
+    const sort = ((req.query.sort as string) || 'volume').toLowerCase();
+    const minVolume = parseInt((req.query.min_volume || req.query.minVolume) as string) || 5;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageSize = Math.max(1, parseInt((req.query.page_size || req.query.pageSize) as string) || 12);
+
+    const productStats = await db.execute(sql`
+      SELECT 
+        r.product_name, 
+        SUM(CASE WHEN f.sentiment = 'Positive' THEN 1 ELSE 0 END) as positive_count,
+        SUM(CASE WHEN f.sentiment = 'Negative' THEN 1 ELSE 0 END) as negative_count,
+        COUNT(*) as total_count
+      FROM ${feedbackResults} f
+      JOIN ${reviews} r ON f.review_id = r.id
+      WHERE r.dataset_id = ${datasetId}
+      GROUP BY r.product_name
+    `);
+
+    const rows = Array.isArray(productStats) ? productStats : ((productStats as any).rows || []);
+
+    const allProducts = rows.map((row: any) => {
+      const pCount = Number(row.positive_count) || 0;
+      const nCount = Number(row.negative_count) || 0;
+      const total = Number(row.total_count) || 0;
+
+      const posPct = total > 0 ? Math.round((pCount / total) * 100) : 0;
+      const negPct = total > 0 ? Math.round((nCount / total) * 100) : 0;
+      const neuCount = Math.max(0, total - pCount - nCount);
+      const prodScore = total > 0 
+        ? Number(((pCount * 5.0 + neuCount * 3.0 + nCount * 1.0) / total).toFixed(1))
+        : 0;
+      const netScore = posPct - negPct;
+
+      return {
+        name: row.product_name,
+        totalReviews: total,
+        positivePct: posPct,
+        negativePct: negPct,
+        netScore,
+        score: prodScore,
+        category: classifyProduct({ positivePct: posPct, negativePct: negPct, total }),
+      };
+    });
+
+    // 1. Apply search and min_volume before classification & counting
+    const filtered = allProducts.filter((item) => {
+      if (item.totalReviews < minVolume) return false;
+      if (search && !item.name.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    // 2. Count for tabs based on filtered dataset
+    const tabs = {
+      star: 0,
+      needs_attention: 0,
+      mixed: 0,
+    };
+
+    filtered.forEach((item) => {
+      if (item.category === 'star') tabs.star++;
+      else if (item.category === 'needs_attention') tabs.needs_attention++;
+      else tabs.mixed++;
+    });
+
+    // 3. Filter by selected category
+    const categoryProducts = filtered.filter((item) => item.category === category);
+
+    // 4. Sort
+    categoryProducts.sort((a, b) => {
+      if (category === 'needs_attention' && (sort === 'volume')) {
+        if (b.negativePct !== a.negativePct) return b.negativePct - a.negativePct;
+        return b.totalReviews - a.totalReviews;
+      }
+
+      switch (sort) {
+        case 'volume':
+          if (b.totalReviews !== a.totalReviews) return b.totalReviews - a.totalReviews;
+          return b.negativePct - a.negativePct;
+        case 'net_score':
+        case 'netscore':
+          if (b.netScore !== a.netScore) return b.netScore - a.netScore;
+          return b.totalReviews - a.totalReviews;
+        case 'pos_pct':
+        case 'positivepct':
+          if (b.positivePct !== a.positivePct) return b.positivePct - a.positivePct;
+          return b.totalReviews - a.totalReviews;
+        case 'neg_pct':
+        case 'negativepct':
+          if (b.negativePct !== a.negativePct) return b.negativePct - a.negativePct;
+          return b.totalReviews - a.totalReviews;
+        default:
+          return b.totalReviews - a.totalReviews;
+      }
+    });
+
+    // 5. Pagination
+    const total_items = categoryProducts.length;
+    const total_pages = Math.ceil(total_items / pageSize) || 1;
+    const safePage = Math.min(page, total_pages);
+    const offset = (safePage - 1) * pageSize;
+    const pagedProducts = categoryProducts.slice(offset, offset + pageSize);
+
+    return res.json({
+      tabs,
+      products: pagedProducts,
+      pagination: {
+        page: safePage,
+        page_size: pageSize,
+        total_items,
+        total_pages,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching product matrix:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/reports/product-matrix
+router.get('/product-matrix', authenticate, getProductMatrixHandler);
+// GET /api/reports/:datasetId/product-matrix
+router.get('/:datasetId/product-matrix', authenticate, getProductMatrixHandler);
 
 // GET /api/reports/:datasetId/overview
 router.get('/:datasetId/overview', authenticate, async (req: any, res: any) => {

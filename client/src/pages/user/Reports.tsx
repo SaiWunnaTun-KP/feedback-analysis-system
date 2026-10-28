@@ -415,8 +415,9 @@ export default function Reports() {
             </Card>
           </div>
 
-          {/* Product Action Matrix */}
+          {/* Product Action Matrix (Server-Driven) */}
           <ProductActionMatrix
+            datasetId={selectedDatasetId ? Number(selectedDatasetId) : undefined}
             data={allProducts}
             selectedProduct={selectedProduct}
             onProductSelect={setSelectedProduct}

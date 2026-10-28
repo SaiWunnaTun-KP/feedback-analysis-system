@@ -123,11 +123,60 @@ export const datasetsApi = {
   delete: (id: number) => apiFetch(`/datasets/${id}`, { method: 'DELETE' }),
 };
 
+export interface ProductMatrixParams {
+  datasetId?: number;
+  category?: 'star' | 'needs_attention' | 'mixed';
+  search?: string;
+  sort?: 'volume' | 'net_score' | 'pos_pct' | 'neg_pct';
+  min_volume?: number;
+  page?: number;
+  page_size?: number;
+}
+
+export interface ProductMatrixProduct {
+  name: string;
+  totalReviews: number;
+  positivePct: number;
+  negativePct: number;
+  netScore: number;
+  score?: number;
+  category: 'star' | 'needs_attention' | 'mixed';
+}
+
+export interface ProductMatrixResponse {
+  tabs: {
+    star: number;
+    needs_attention: number;
+    mixed: number;
+  };
+  products: ProductMatrixProduct[];
+  pagination: {
+    page: number;
+    page_size: number;
+    total_items: number;
+    total_pages: number;
+  };
+}
+
 export const reportsApi = {
   getOverview: (datasetId: number) => apiFetch(`/reports/${datasetId}/overview`),
   getDrilldown: (datasetId: number, params: Record<string, string>) => {
     const searchParams = new URLSearchParams(params);
     return apiFetch(`/reports/${datasetId}/drilldown?${searchParams.toString()}`);
+  },
+  getProductMatrix: (params: ProductMatrixParams = {}): Promise<ProductMatrixResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params.datasetId !== undefined && params.datasetId !== null) searchParams.append('datasetId', String(params.datasetId));
+    if (params.category) searchParams.append('category', params.category);
+    if (params.search) searchParams.append('search', params.search);
+    if (params.sort) searchParams.append('sort', params.sort);
+    if (params.min_volume !== undefined) searchParams.append('min_volume', String(params.min_volume));
+    if (params.page !== undefined) searchParams.append('page', String(params.page));
+    if (params.page_size !== undefined) searchParams.append('page_size', String(params.page_size));
+
+    const qs = searchParams.toString();
+    const endpoint = params.datasetId ? `/reports/${params.datasetId}/product-matrix` : `/reports/product-matrix`;
+    return apiFetch(`${endpoint}${qs ? `?${qs}` : ''}`);
   }
 };
 
