@@ -3,7 +3,6 @@ export * from './ProductActionMatrix/MatrixControls';
 export * from './ProductActionMatrix/CategoryTabs';
 export * from './ProductActionMatrix/ProductCard';
 export * from './ProductActionMatrix/ProductListView';
-export * from './ProductActionMatrix/ProductHeatmapView';
 export * from './ProductActionMatrix/MatrixPagination';
 
 export { default } from './ProductActionMatrix/ProductActionMatrix';

@@ -158,6 +158,49 @@ export interface ProductMatrixResponse {
   };
 }
 
+export interface DriverItem {
+  aspect: string;
+  impact: number;
+  mentionCount: number;
+  topOpinions?: string[];
+}
+
+export interface WordCloudItem {
+  text: string;
+  value: number;
+  sentiment: 'Positive' | 'Negative' | 'Neutral';
+}
+
+export interface QuoteItem {
+  id: string;
+  text: string;
+  aspect: string;
+  opinion: string;
+  sentiment: 'Positive' | 'Negative';
+  date?: string;
+  source?: string;
+}
+
+export interface ProductDetailResponse {
+  product: {
+    name: string;
+    totalReviews: number;
+    positivePct: number;
+    negativePct: number;
+    netScore: number;
+    lastUpdated?: string;
+  };
+  drivers: {
+    negative: DriverItem[];
+    positive: DriverItem[];
+  };
+  wordCloud: WordCloudItem[];
+  quotes: {
+    positive: QuoteItem[];
+    negative: QuoteItem[];
+  };
+}
+
 export const reportsApi = {
   getOverview: (datasetId: number) => apiFetch(`/reports/${datasetId}/overview`),
   getDrilldown: (datasetId: number, params: Record<string, string>) => {
@@ -176,6 +219,22 @@ export const reportsApi = {
 
     const qs = searchParams.toString();
     const endpoint = params.datasetId ? `/reports/${params.datasetId}/product-matrix` : `/reports/product-matrix`;
+    return apiFetch(`${endpoint}${qs ? `?${qs}` : ''}`);
+  },
+  getProductDetail: (
+    datasetId: number | string | undefined,
+    productName: string,
+    params: { aspect?: string; keyword?: string } = {}
+  ): Promise<ProductDetailResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params.aspect && params.aspect !== 'all') searchParams.append('aspect', params.aspect);
+    if (params.keyword) searchParams.append('keyword', params.keyword);
+
+    const qs = searchParams.toString();
+    const encodedProduct = encodeURIComponent(productName);
+    const endpoint = datasetId
+      ? `/reports/${datasetId}/product/${encodedProduct}`
+      : `/reports/product/${encodedProduct}`;
     return apiFetch(`${endpoint}${qs ? `?${qs}` : ''}`);
   }
 };

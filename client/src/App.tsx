@@ -16,6 +16,7 @@ const queryClient = new QueryClient();
 import Overview from './pages/user/Overview';
 import Datasets from './pages/user/Datasets';
 import Reports from './pages/user/Reports';
+import ProductDetailPage from './pages/user/ProductDetailPage';
 import Subscriptions from './pages/user/Subscriptions';
 import Settings from './pages/user/Settings';
 import HelpSupport from './pages/user/HelpSupport';
@@ -51,6 +52,8 @@ function App() {
                   <Route path="/dashboard" element={<Overview />} />
                   <Route path="/dashboard/datasets" element={<Datasets />} />
                   <Route path="/dashboard/reports" element={<Reports />} />
+                  <Route path="/dashboard/reports/:datasetId/product/:productName" element={<ProductDetailPage />} />
+                  <Route path="/dashboard/reports/product/:productName" element={<ProductDetailPage />} />
                   <Route path="/dashboard/subscriptions" element={<Subscriptions />} />
                   <Route path="/dashboard/settings" element={<Settings />} />
                   <Route path="/dashboard/help" element={<HelpSupport />} />

@@ -4,23 +4,37 @@ import type { ProductMatrixProduct } from '@/services/api';
 import type { MatrixCategory } from './CategoryTabs';
 import { Inbox, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table';
 
 export interface ProductListViewProps {
   products: ProductMatrixProduct[];
   selectedProduct?: string | null;
   onProductSelect?: (name: string | null) => void;
+  onProductClick?: (name: string) => void;
   isLoading?: boolean;
   activeTab: MatrixCategory;
   onResetFilters?: () => void;
+  page?: number;
+  pageSize?: number;
 }
 
 export const ProductListView: React.FC<ProductListViewProps> = ({
   products,
   selectedProduct,
   onProductSelect,
+  onProductClick,
   isLoading,
   activeTab,
   onResetFilters,
+  page = 1,
+  pageSize = 10,
 }) => {
   const handleSelect = (name: string) => {
     if (!onProductSelect) return;
@@ -34,23 +48,53 @@ export const ProductListView: React.FC<ProductListViewProps> = ({
   // Loading skeleton state
   if (isLoading) {
     return (
-      <div className="space-y-2.5" aria-busy="true" aria-label="Loading products">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between p-3.5 rounded-lg border border-slate-200/60 bg-white/60 animate-pulse border-l-4 border-l-slate-200"
-          >
-            <div className="space-y-2 flex-1">
-              <div className="h-4 bg-slate-200 rounded w-1/3" />
-              <div className="flex items-center gap-3">
-                <div className="h-3 bg-slate-200 rounded w-16" />
-                <div className="h-3 bg-slate-200 rounded w-16" />
-                <div className="h-3 bg-slate-200 rounded w-20" />
-              </div>
-            </div>
-            <div className="h-6 w-12 bg-slate-200 rounded-md" />
-          </div>
-        ))}
+      <div
+        className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs"
+        aria-busy="true"
+        aria-label="Loading products"
+      >
+        <Table>
+          <TableHeader className="bg-slate-50/90 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-b border-slate-200">
+              <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-500 text-center w-12">#</TableHead>
+              <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600">Product Name</TableHead>
+              <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600">Sentiment Breakdown</TableHead>
+              <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600 text-right">Reviews</TableHead>
+              <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600 text-right">Net Score</TableHead>
+              <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600 text-center w-24">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 10 }).map((_, i) => (
+              <TableRow key={i} className="animate-pulse border-b border-slate-100">
+                <TableCell className="py-2.5 px-3 text-center">
+                  <div className="h-3.5 bg-slate-100 rounded w-4 mx-auto" />
+                </TableCell>
+                <TableCell className="py-2.5 px-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-4 bg-slate-200 rounded-full" />
+                    <div className="h-3.5 bg-slate-200 rounded w-2/3" />
+                  </div>
+                </TableCell>
+                <TableCell className="py-2.5 px-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 bg-slate-100 rounded w-14" />
+                    <div className="h-3 bg-slate-100 rounded w-14" />
+                  </div>
+                </TableCell>
+                <TableCell className="py-2.5 px-3 text-right">
+                  <div className="h-3.5 bg-slate-100 rounded w-10 ml-auto" />
+                </TableCell>
+                <TableCell className="py-2.5 px-3 text-right">
+                  <div className="h-5 bg-slate-200 rounded w-12 ml-auto" />
+                </TableCell>
+                <TableCell className="py-2.5 px-3 text-center">
+                  <div className="h-3.5 bg-slate-100 rounded w-10 mx-auto" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     );
   }
@@ -91,15 +135,34 @@ export const ProductListView: React.FC<ProductListViewProps> = ({
   }
 
   return (
-    <div className="space-y-2.5">
-      {products.map((product) => (
-        <ProductCard
-          key={product.name}
-          product={product}
-          isSelected={selectedProduct === product.name}
-          onSelect={handleSelect}
-        />
-      ))}
+    <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs">
+      <Table>
+        <TableHeader className="bg-slate-50/90 border-b border-slate-200">
+          <TableRow className="hover:bg-transparent border-b border-slate-200">
+            <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-500 text-center w-12">#</TableHead>
+            <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600">Product Name</TableHead>
+            <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600">Sentiment Breakdown</TableHead>
+            <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600 text-right">Reviews</TableHead>
+            <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600 text-right">Net Score</TableHead>
+            <TableHead className="py-2.5 px-3 text-xs font-semibold text-slate-600 text-center w-24">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {products.map((product, index) => {
+            const rowNumber = (page - 1) * pageSize + index + 1;
+            return (
+              <ProductCard
+                key={product.name}
+                product={product}
+                isSelected={selectedProduct === product.name}
+                onSelect={handleSelect}
+                onClick={onProductClick}
+                rowNumber={rowNumber}
+              />
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 };
