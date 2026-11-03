@@ -39,12 +39,12 @@ export const ProductDetailHeader: React.FC<ProductDetailHeaderProps> = ({
           variant="outline"
           size="sm"
           onClick={onBack}
-          className="gap-2 bg-white text-slate-700 hover:text-slate-900 border-slate-200 cursor-pointer shadow-2xs"
+          className="gap-2 bg-card text-slate-700 hover:text-slate-900 border-slate-200 cursor-pointer shadow-2xs"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Product Action Matrix</span>
         </Button>
-
+ 
         {(selectedAspect || selectedKeyword) && (
           <Button
             variant="ghost"
@@ -59,7 +59,7 @@ export const ProductDetailHeader: React.FC<ProductDetailHeaderProps> = ({
       </div>
 
       {/* Product Title & Metrics Card */}
-      <div className="p-5 rounded-xl border border-slate-200/90 bg-white shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 rounded-xl border border-slate-200/90 bg-card shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">

@@ -49,7 +49,7 @@ export const ProductListView: React.FC<ProductListViewProps> = ({
   if (isLoading) {
     return (
       <div
-        className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs"
+        className="rounded-lg border border-slate-200 overflow-hidden bg-card shadow-2xs"
         aria-busy="true"
         aria-label="Loading products"
       >
@@ -135,7 +135,7 @@ export const ProductListView: React.FC<ProductListViewProps> = ({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs">
+    <div className="rounded-lg border border-slate-200 overflow-hidden bg-card shadow-2xs">
       <Table>
         <TableHeader className="bg-slate-50/90 border-b border-slate-200">
           <TableRow className="hover:bg-transparent border-b border-slate-200">

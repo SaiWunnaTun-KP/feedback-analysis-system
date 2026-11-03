@@ -181,7 +181,7 @@ export const ProductActionMatrix: React.FC<ProductActionMatrixProps> = ({
   };
 
   return (
-    <Card className="shadow-sm border-slate-200/80 bg-white">
+    <Card className="shadow-sm border-slate-200/80 bg-card">
       {/* Header */}
       <CardHeader className="pb-0 border-b border-slate-200">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">

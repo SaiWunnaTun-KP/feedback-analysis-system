@@ -17,11 +17,13 @@ import {
   ArrowRight, 
   Loader2, 
   AlertCircle,
+  AlertTriangle,
   FileCheck2,
   ChevronsLeft,
   ChevronLeft,
   ChevronRight,
-  ChevronsRight
+  ChevronsRight,
+  RotateCw
 } from 'lucide-react';
 import { Link } from 'react-router';
 import {
@@ -49,6 +51,12 @@ export default function Datasets() {
   const { data: responseData, isLoading: loadingDatasets } = useQuery({
     queryKey: ['datasets', { page: currentPage, limit: itemsPerPage, offset }],
     queryFn: () => datasetsApi.get({ page: currentPage, limit: itemsPerPage, offset }),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const list = Array.isArray(data) ? data : (data?.datasets || []);
+      const isAnyProcessing = list.some((d: any) => d.status === 'ANALYSIS_IN_PROGRESS');
+      return isAnyProcessing ? 2500 : false;
+    },
   });
 
   const datasets: any[] = Array.isArray(responseData)
@@ -68,6 +76,7 @@ export default function Datasets() {
     onSuccess: () => {
       setCurrentPage(1);
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      queryClient.invalidateQueries({ queryKey: ['activeDatasetProgress'] });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
       setSelectedFile(null);
       setAgreedToTerms(false);
@@ -78,10 +87,21 @@ export default function Datasets() {
     onError: (error: any) => toast.error(error.message)
   });
 
+  const retryMutation = useMutation({
+    mutationFn: (id: number) => datasetsApi.retry(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      queryClient.invalidateQueries({ queryKey: ['activeDatasetProgress'] });
+      toast.success('Dataset analysis restarted!');
+    },
+    onError: (error: any) => toast.error(error.message || 'Failed to retry dataset analysis'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => datasetsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      queryClient.invalidateQueries({ queryKey: ['activeDatasetProgress'] });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
       if (datasets.length === 1 && currentPage > 1) {
         setCurrentPage(p => Math.max(1, p - 1));
@@ -236,14 +256,14 @@ export default function Datasets() {
           {/* High-Visibility Format Acknowledgment Card */}
           <div 
             onClick={() => !uploadMutation.isPending && setAgreedToTerms(!agreedToTerms)}
-            className={`relative rounded-xl border-2 p-4 transition-all cursor-pointer select-none ${
+            className={`relative rounded-xl border p-4 transition-all cursor-pointer select-none ${
               uploadMutation.isPending
-                ? 'opacity-60 pointer-events-none bg-slate-50 border-slate-200'
+                ? 'opacity-60 pointer-events-none bg-slate-100/50 border-slate-200'
                 : agreedToTerms
-                ? 'border-emerald-400 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-400/20'
+                ? 'border-emerald-500/60 bg-emerald-500/10 shadow-xs ring-1 ring-emerald-500/20'
                 : isTermsMissing
-                ? 'border-rose-400 bg-rose-50/60 ring-2 ring-rose-300/40'
-                : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/20'
+                ? 'border-rose-500/60 bg-rose-500/10 ring-2 ring-rose-500/30'
+                : 'border-slate-200 bg-slate-50/70 hover:border-blue-400 hover:bg-blue-50/20'
             }`}
           >
             <div className="flex items-start gap-3.5">
@@ -252,7 +272,7 @@ export default function Datasets() {
                 checked={agreedToTerms} 
                 onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} 
                 className={`mt-0.5 h-5 w-5 rounded-md border-2 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 transition-colors ${
-                  isTermsMissing ? 'border-rose-500' : 'border-slate-400'
+                  isTermsMissing ? 'border-rose-500' : 'border-slate-300'
                 }`}
                 onClick={(e) => e.stopPropagation()}
                 disabled={uploadMutation.isPending}
@@ -264,15 +284,15 @@ export default function Datasets() {
                       Format Acknowledgment
                     </label>
                     {agreedToTerms ? (
-                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 text-[11px] gap-1 font-medium">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Confirmed
+                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 text-[11px] gap-1 font-medium">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> Confirmed
                       </Badge>
                     ) : isTermsMissing ? (
                       <Badge variant="destructive" className="text-[11px] gap-1">
                         <AlertCircle className="h-3 w-3" /> Check required
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[11px] text-blue-700 bg-blue-50 border-blue-200 font-medium">
+                      <Badge variant="outline" className="text-[11px] text-blue-600 dark:text-sky-400 bg-blue-500/10 border-blue-500/30 font-medium">
                         Required before submit
                       </Badge>
                     )}
@@ -280,10 +300,10 @@ export default function Datasets() {
                   <span className="text-xs text-slate-400 font-medium">Click card or checkbox to acknowledge</span>
                 </div>
                 <p className="text-sm text-slate-600 leading-normal">
-                  I confirm that my file is formatted according to the template containing at least <span className="inline-flex px-1.5 py-0.5 rounded font-mono text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">Product_Name</span> and <span className="inline-flex px-1.5 py-0.5 rounded font-mono text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">Review_Text</span> columns.
+                  I confirm that my file is formatted according to the template containing at least <span className="inline-flex px-1.5 py-0.5 rounded font-mono text-xs font-semibold bg-slate-200/60 text-slate-800 border border-slate-300/60">Product_Name</span> and <span className="inline-flex px-1.5 py-0.5 rounded font-mono text-xs font-semibold bg-slate-200/60 text-slate-800 border border-slate-300/60">Review_Text</span> columns.
                 </p>
                 {isTermsMissing && (
-                  <p className="text-xs font-semibold text-rose-600 flex items-center gap-1.5 pt-0.5 animate-in fade-in">
+                  <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 pt-0.5 animate-in fade-in">
                     <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                     Please check this acknowledgment box before uploading.
                   </p>
@@ -294,23 +314,23 @@ export default function Datasets() {
 
           {/* Upload Progress & Loading Bar Display */}
           {uploadMutation.isPending && (
-            <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-blue-50/90 p-4.5 space-y-3.5 shadow-xs animate-in fade-in duration-200">
+            <div className="rounded-xl border border-blue-200 dark:border-blue-800/80 bg-blue-50/90 dark:bg-blue-950/50 p-4.5 space-y-3.5 shadow-xs animate-in fade-in duration-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
                     <Loader2 className="h-5 w-5 animate-spin" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
                       Uploading {selectedFile ? `"${selectedFile.name}"` : 'Dataset'}...
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • ` : ''}
                       Transmitting dataset & starting automated sentiment analysis
                     </p>
                   </div>
                 </div>
-                <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100 animate-pulse text-xs font-medium">
+                <Badge className="bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs font-medium">
                   Uploading...
                 </Badge>
               </div>
@@ -318,15 +338,15 @@ export default function Datasets() {
               {/* Animated Progress Bar */}
               <div className="space-y-1.5">
                 <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
-                  <div className="absolute inset-0 bg-blue-600 rounded-full" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" />
+                  <div className="absolute inset-0 bg-blue-600 dark:bg-blue-500 rounded-full" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
                 </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5 text-blue-600 font-medium">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1.5 text-blue-600 dark:text-sky-400 font-medium">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-sky-400 animate-ping" />
                     Please keep this tab open while upload completes
                   </span>
-                  <span className="text-slate-400 font-mono text-[11px]">Secure Transfer</span>
+                  <span className="text-slate-400 dark:text-slate-500 font-mono text-[11px]">Secure Transfer</span>
                 </div>
               </div>
             </div>
@@ -357,13 +377,13 @@ export default function Datasets() {
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium transition-colors ${
                   selectedFile 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
                     : isFileMissing
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
                 }`}>
                   {selectedFile ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   ) : (
                     <span className={`w-1.5 h-1.5 rounded-full ${isFileMissing ? 'bg-rose-500' : 'bg-slate-400'}`} />
                   )}
@@ -372,13 +392,13 @@ export default function Datasets() {
 
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium transition-colors ${
                   agreedToTerms 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
                     : isTermsMissing
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
                 }`}>
                   {agreedToTerms ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   ) : (
                     <span className={`w-1.5 h-1.5 rounded-full ${isTermsMissing ? 'bg-rose-500' : 'bg-slate-400'}`} />
                   )}
@@ -426,43 +446,135 @@ export default function Datasets() {
                     <TableCell className="text-slate-500">{new Date(d.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {d.status === 'PENDING' && <Badge variant="secondary">Pending</Badge>}
-                      {d.status === 'ANALYSIS_IN_PROGRESS' && (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 flex w-fit items-center gap-1">
-                          <FileClock className="h-3 w-3" /> Processing
+                      {d.status === 'ANALYSIS_IN_PROGRESS' && (() => {
+                        const total = Number(d.totalReviews) || 0;
+                        const processed = Number(d.processedReviews) || 0;
+                        const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : null;
+
+                        return (
+                          <div className="flex flex-col gap-1.5 w-fit min-w-[130px]">
+                            <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 flex w-fit items-center gap-1.5 font-medium">
+                              <Loader2 className="h-3 w-3 animate-spin text-amber-600 dark:text-amber-400" />
+                              <span>Processing</span>
+                              {pct !== null && (
+                                <span className="font-mono font-bold ml-0.5">{pct}%</span>
+                              )}
+                            </Badge>
+                            {total > 0 && (
+                              <div className="w-full bg-amber-100 dark:bg-amber-950/60 h-1.5 rounded-full overflow-hidden border border-amber-200/60 dark:border-amber-800/40">
+                                <div
+                                  className="bg-amber-500 dark:bg-amber-400 h-full rounded-full transition-all duration-300"
+                                  style={{ width: `${Math.max(5, pct || 0)}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {d.status === 'COMPLETED' && (
+                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800">
+                          Completed
                         </Badge>
                       )}
-                      {d.status === 'COMPLETED' && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Completed</Badge>}
-                      {d.status === 'FAILED' && <Badge variant="destructive">Failed</Badge>}
+                      {d.status === 'FAILED' && (
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="destructive" className="bg-rose-100 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-900 font-medium">
+                            Failed
+                          </Badge>
+                          {d.errorMessage && (
+                            <span 
+                              className="text-rose-500 hover:text-rose-700 dark:text-rose-400 cursor-help" 
+                              title={d.errorMessage}
+                            >
+                              <AlertCircle className="h-4 w-4" />
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       {d.status === 'COMPLETED' && (
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" asChild>
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40" asChild>
                           <Link to={`/dashboard/reports?datasetId=${d.id}`}>
                             View Analysis <ArrowRight className="ml-1 h-4 w-4" />
                           </Link>
                         </Button>
                       )}
+                      {d.status === 'FAILED' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 h-8"
+                          disabled={retryMutation.isPending && (retryMutation.variables === d.id)}
+                          onClick={() => retryMutation.mutate(d.id)}
+                          title="Retry running analysis on this dataset"
+                        >
+                          <RotateCw className={`h-3.5 w-3.5 ${retryMutation.isPending && retryMutation.variables === d.id ? 'animate-spin' : ''}`} />
+                          <span>{retryMutation.isPending && retryMutation.variables === d.id ? 'Retrying...' : 'Try Again'}</span>
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-rose-600 hover:bg-rose-50" disabled={deleteMutation.isPending}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className={d.status === 'ANALYSIS_IN_PROGRESS' 
+                              ? "text-amber-600 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40" 
+                              : "text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                            } 
+                            disabled={deleteMutation.isPending && (deleteMutation.variables === d.id)}
+                            title={d.status === 'ANALYSIS_IN_PROGRESS' ? "Stop processing and delete dataset" : "Delete dataset"}
+                          >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Delete</span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete the dataset <strong>{d.filename}</strong>, along with all parsed reviews and generated sentiment analysis results from our servers. 
-                              The storage quota will be refunded to your account.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => deleteMutation.mutate(d.id)}>
-                              Yes, delete dataset
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
+                          {d.status === 'ANALYSIS_IN_PROGRESS' ? (
+                            <>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                                  <AlertTriangle className="h-5 w-5 shrink-0" />
+                                  <span>Dataset is currently processing</span>
+                                </AlertDialogTitle>
+                                <AlertDialogDescription className="space-y-3 pt-1 text-left">
+                                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                                    <span className="font-semibold block mb-1">⚠️ Active Analysis Warning</span>
+                                    The dataset <strong>"{d.filename}"</strong> is currently being processed by the sentiment analysis engine. 
+                                    Deleting it now will <strong>immediately stop and cancel</strong> the background process, remove the file from storage, and delete all records.
+                                  </div>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    Your storage quota will be fully refunded once deleted. This action cannot be undone.
+                                  </p>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Keep Processing</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  className="bg-rose-600 hover:bg-rose-700 text-white font-medium" 
+                                  onClick={() => deleteMutation.mutate(d.id)}
+                                >
+                                  {deleteMutation.isPending && deleteMutation.variables === d.id ? 'Stopping & Deleting...' : 'Stop Analysis & Delete'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </>
+                          ) : (
+                            <>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the dataset <strong>{d.filename}</strong>, along with all parsed reviews and generated sentiment analysis results from our servers. 
+                                  The storage quota will be refunded to your account.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => deleteMutation.mutate(d.id)}>
+                                  {deleteMutation.isPending && deleteMutation.variables === d.id ? 'Deleting...' : 'Yes, delete dataset'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </>
+                          )}
                         </AlertDialogContent>
                       </AlertDialog>
                     </TableCell>

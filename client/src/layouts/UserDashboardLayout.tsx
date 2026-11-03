@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { NotificationSystem } from '../components/NotificationSystem';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { AnnouncementModal } from '../components/AnnouncementModal';
+import { ActiveAnalysisIndicator } from '../components/ActiveAnalysisIndicator';
 import {
   LogOut,
   LineChart,
@@ -90,11 +91,14 @@ export function UserDashboardLayout() {
       <div className="flex-1 flex flex-col ml-64 min-h-screen bg-background">
         {/* Top Header */}
         <header className="h-16 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/75 border-b border-border flex items-center justify-between px-8 sticky top-0 z-40">
-          <h2 className="text-lg font-semibold text-foreground">
-            Retail Manager
-          </h2>
+          <div className="flex items-center gap-4 min-w-0">
+            <h2 className="text-lg font-semibold text-foreground shrink-0">
+              Retail Manager
+            </h2>
+            <ActiveAnalysisIndicator />
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <ThemeToggle />
             <NotificationSystem />
 

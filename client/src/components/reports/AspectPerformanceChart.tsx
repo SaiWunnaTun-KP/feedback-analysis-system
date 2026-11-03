@@ -96,7 +96,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const data = payload[0].payload;
     const netSign = data.netScore > 0 ? '+' : '';
     return (
-      <div className="bg-white border border-slate-200 p-3 rounded shadow-md text-sm">
+      <div className="bg-card text-card-foreground border border-slate-200 p-3 rounded-lg shadow-md text-sm">
         <p className="font-bold mb-2 border-b pb-1">Aspect: {label}</p>
         <div className="flex justify-between gap-4">
           <span className="text-emerald-600">Positive</span>

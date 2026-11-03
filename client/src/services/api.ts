@@ -102,6 +102,20 @@ export const subscriptionsApi = {
   sync: () => apiFetch('/subscriptions/sync', { method: 'POST' }),
 };
 
+export interface DatasetItem {
+  id: number;
+  userId: number;
+  filename: string;
+  filePath: string;
+  fileSizeMb: string | number;
+  status: 'PENDING' | 'ANALYSIS_IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  totalReviews: number;
+  processedReviews: number;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const datasetsApi = {
   get: (params?: { page?: number; limit?: number; offset?: number; all?: boolean }) => {
     if (!params) return apiFetch('/datasets');
@@ -121,6 +135,8 @@ export const datasetsApi = {
     });
   },
   delete: (id: number) => apiFetch(`/datasets/${id}`, { method: 'DELETE' }),
+  retry: (id: number) => apiFetch(`/datasets/${id}/retry`, { method: 'POST' }),
+  getActiveProgress: (): Promise<{ activeDataset: DatasetItem | null }> => apiFetch('/datasets/active'),
 };
 
 export interface ProductMatrixParams {

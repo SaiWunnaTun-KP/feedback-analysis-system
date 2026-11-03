@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database/index.ts';
-import { activeSubscriptions, datasets, users, reviews } from '../database/schema.ts';
-import { eq, and, desc, count } from 'drizzle-orm';
+import { activeSubscriptions, datasets, users, reviews, feedbackResults } from '../database/schema.ts';
+import { eq, and, desc, count, inArray } from 'drizzle-orm';
 import { authenticate } from '../middlewares/authMiddleware.ts';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
@@ -19,6 +19,40 @@ const s3Client = new S3Client({
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
+});
+
+// Helper functions for matching columns exactly (stripping non-alphanumeric chars)
+const getNorm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const isProductCol = (h: string) => {
+  const norm = getNorm(h);
+  const validAliases = ['productname', 'product', 'itemname', 'item', 'name', 'producttitle'];
+  return validAliases.includes(norm);
+};
+
+const isReviewCol = (h: string) => {
+  const norm = getNorm(h);
+  const validAliases = ['reviewtext', 'review', 'feedback', 'customerfeedback', 'text', 'comment', 'comments'];
+  return validAliases.includes(norm);
+};
+
+// GET /api/datasets/active
+// Returns the currently active dataset in progress (if any) for the user
+router.get('/active', authenticate, async (req: any, res: any) => {
+  try {
+    const userId = req.user.userId;
+    const [active] = await db
+      .select()
+      .from(datasets)
+      .where(and(eq(datasets.userId, userId), eq(datasets.status, 'ANALYSIS_IN_PROGRESS')))
+      .orderBy(desc(datasets.updatedAt))
+      .limit(1);
+
+    res.json({ activeDataset: active || null });
+  } catch (error) {
+    console.error('Error fetching active dataset:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // GET /api/datasets
@@ -114,7 +148,6 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
     let usedStorageMb = 0;
 
     if (subscription) {
-      // We need to fetch plan details to get max storage
       const planRes = await db.execute(`SELECT max_storage_mb FROM plans WHERE id = ${subscription.planId}`);
       if (planRes.rows.length > 0) {
         maxStorageMb = Number(planRes.rows[0].max_storage_mb);
@@ -130,24 +163,8 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
       return res.status(402).json({ error: `Upload exceeds quota. Used: ${usedStorageMb.toFixed(2)}MB, Max: ${maxStorageMb}MB, File: ${fileSizeMb.toFixed(2)}MB` });
     }
 
-    // Helper functions for matching columns exactly (stripping non-alphanumeric chars)
-    const getNorm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    const isProductCol = (h: string) => {
-      const norm = getNorm(h);
-      const validAliases = ['productname', 'product', 'itemname', 'item', 'name', 'producttitle'];
-      return validAliases.includes(norm);
-    };
-    
-    const isReviewCol = (h: string) => {
-      const norm = getNorm(h);
-      const validAliases = ['reviewtext', 'review', 'feedback', 'customerfeedback', 'text', 'comment', 'comments'];
-      return validAliases.includes(norm);
-    };
-
     // 2. CSV Template Validation (Flexible)
     try {
-      // Parse just the first line (headers)
       const firstNewlineIdx = file.buffer.indexOf('\n');
       const headerLine = firstNewlineIdx !== -1 
         ? file.buffer.subarray(0, firstNewlineIdx).toString('utf-8') 
@@ -173,8 +190,8 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
     await s3Client.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME!,
       Key: objectKey,
-      Body: file.buffer,
       ContentType: 'text/csv',
+      Body: file.buffer,
     }));
 
     // 4. Update Quota
@@ -182,7 +199,6 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
       const newUsedStorage = usedStorageMb + fileSizeMb;
       await db.update(activeSubscriptions).set({ usedStorageMb: newUsedStorage.toString() }).where(eq(activeSubscriptions.id, subscription.id));
     } else {
-      // Set free trial exhausted for simplistic MVP approach
       await db.update(users).set({ hasUsedFreeTrial: true }).where(eq(users.id, userId));
     }
 
@@ -193,9 +209,12 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
       filePath: objectKey,
       fileSizeMb: fileSizeMb.toString(),
       status: 'ANALYSIS_IN_PROGRESS',
+      totalReviews: 0,
+      processedReviews: 0,
+      errorMessage: null,
     }).returning();
 
-    // 6. Asynchronous CSV Parsing & Insertion
+    // 6. Asynchronous CSV Parsing & Review Insertion with Try/Catch
     const results: any[] = [];
     let productNameKey = '';
     let reviewTextKey = '';
@@ -212,30 +231,61 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
         if (productNameKey && reviewTextKey && data[productNameKey] && data[reviewTextKey]) {
           results.push({
             datasetId: dataset.id,
-            productName: String(data[productNameKey]).substring(0, 255), // Truncate to fit varchar(255)
+            productName: String(data[productNameKey]).substring(0, 255),
             reviewText: String(data[reviewTextKey])
           });
         }
       })
+      .on('error', async (parseErr) => {
+        console.error(`CSV stream error for dataset ${dataset.id}:`, parseErr);
+        await db.update(datasets).set({
+          status: 'FAILED',
+          errorMessage: 'CSV stream parsing error: ' + (parseErr.message || 'Malformed CSV')
+        }).where(eq(datasets.id, dataset.id));
+      })
       .on('end', async () => {
         try {
+          if (results.length === 0) {
+            console.warn(`No valid review rows found for dataset ${dataset.id}`);
+            await db.update(datasets).set({
+              status: 'FAILED',
+              errorMessage: 'No valid rows matching product and review columns were found.'
+            }).where(eq(datasets.id, dataset.id));
+            return;
+          }
+
           // Batch insert into reviews table
           const chunkSize = 1000;
           for (let i = 0; i < results.length; i += chunkSize) {
             await db.insert(reviews).values(results.slice(i, i + chunkSize));
           }
           
-          console.log(`Inserted ${results.length} reviews for dataset ${dataset.id}`);
+          await db.update(datasets).set({
+            totalReviews: results.length,
+            processedReviews: 0,
+            errorMessage: null,
+          }).where(eq(datasets.id, dataset.id));
+
+          console.log(`Inserted ${results.length} reviews for dataset ${dataset.id}. Launching Python worker...`);
 
           // Trigger AI Microservice (Python FastAPI)
-          fetch('http://localhost:8001/analyze', {
+          const workerRes = await fetch('http://localhost:8001/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dataset_id: dataset.id })
-          }).catch(err => console.error('Failed to trigger Python worker:', err));
+          });
 
-        } catch (dbErr) {
-          console.error('Error inserting reviews:', dbErr);
+          if (!workerRes.ok) {
+            const errText = await workerRes.text();
+            throw new Error(`Worker HTTP ${workerRes.status}: ${errText}`);
+          }
+
+        } catch (dbErr: any) {
+          console.error(`Error processing reviews/launching worker for dataset ${dataset.id}:`, dbErr);
+          await db.update(datasets).set({
+            status: 'FAILED',
+            errorMessage: 'Analysis start error: ' + (dbErr.message || 'Failed to trigger worker')
+          }).where(eq(datasets.id, dataset.id));
         }
       });
 
@@ -248,9 +298,128 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
   }
 });
 
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { inArray } from 'drizzle-orm';
-import { feedbackResults } from '../database/schema.ts';
+// POST /api/datasets/:id/retry
+// Retry/re-run analysis on a failed or stuck dataset
+router.post('/:id/retry', authenticate, async (req: any, res: any) => {
+  try {
+    const userId = req.user.userId;
+    const datasetId = parseInt(req.params.id);
+
+    if (isNaN(datasetId)) {
+      return res.status(400).json({ error: 'Invalid dataset ID' });
+    }
+
+    // 1. Verify ownership
+    const [dataset] = await db
+      .select()
+      .from(datasets)
+      .where(and(eq(datasets.id, datasetId), eq(datasets.userId, userId)));
+
+    if (!dataset) {
+      return res.status(404).json({ error: 'Dataset not found or unauthorized' });
+    }
+
+    // 2. Clean up any existing feedback_results for this dataset's reviews
+    const datasetReviews = await db
+      .select({ id: reviews.id })
+      .from(reviews)
+      .where(eq(reviews.datasetId, datasetId));
+
+    const reviewIds = datasetReviews.map((r: any) => r.id);
+    if (reviewIds.length > 0) {
+      const chunkSize = 1000;
+      for (let i = 0; i < reviewIds.length; i += chunkSize) {
+        const chunk = reviewIds.slice(i, i + chunkSize);
+        await db.delete(feedbackResults).where(inArray(feedbackResults.reviewId, chunk));
+      }
+    }
+
+    // 3. Check if reviews already exist in DB
+    let totalReviews = reviewIds.length;
+
+    if (totalReviews === 0) {
+      // Tier 2: Stream from R2 and re-parse reviews
+      console.log(`Dataset ${datasetId} has 0 reviews in DB. Streaming from R2 (${dataset.filePath})...`);
+      const getObjectRes = await s3Client.send(new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: dataset.filePath,
+      }));
+
+      if (!getObjectRes.Body) {
+        return res.status(404).json({ error: 'Dataset CSV file not found in storage' });
+      }
+
+      const stream = getObjectRes.Body as Readable;
+      const parsedRows: any[] = [];
+      let productNameKey = '';
+      let reviewTextKey = '';
+
+      await new Promise<void>((resolve, reject) => {
+        stream
+          .pipe(csv())
+          .on('headers', (headers) => {
+            headers.forEach((h: string) => {
+              if (!productNameKey && isProductCol(h)) productNameKey = h;
+              if (!reviewTextKey && isReviewCol(h)) reviewTextKey = h;
+            });
+          })
+          .on('data', (data) => {
+            if (productNameKey && reviewTextKey && data[productNameKey] && data[reviewTextKey]) {
+              parsedRows.push({
+                datasetId: dataset.id,
+                productName: String(data[productNameKey]).substring(0, 255),
+                reviewText: String(data[reviewTextKey]),
+              });
+            }
+          })
+          .on('error', (err) => reject(err))
+          .on('end', () => resolve());
+      });
+
+      if (parsedRows.length === 0) {
+        await db.update(datasets).set({
+          status: 'FAILED',
+          errorMessage: 'No valid product or review rows found in the CSV.'
+        }).where(eq(datasets.id, datasetId));
+        return res.status(400).json({ error: 'No valid reviews could be extracted from the file' });
+      }
+
+      const chunkSize = 1000;
+      for (let i = 0; i < parsedRows.length; i += chunkSize) {
+        await db.insert(reviews).values(parsedRows.slice(i, i + chunkSize));
+      }
+      totalReviews = parsedRows.length;
+    }
+
+    // 4. Mark status = ANALYSIS_IN_PROGRESS, clear error_message
+    await db.update(datasets).set({
+      status: 'ANALYSIS_IN_PROGRESS',
+      totalReviews,
+      processedReviews: 0,
+      errorMessage: null,
+      updatedAt: new Date(),
+    }).where(eq(datasets.id, datasetId));
+
+    // 5. Trigger Python worker
+    fetch('http://localhost:8001/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataset_id: datasetId })
+    }).catch(async (err) => {
+      console.error('Failed to trigger Python worker on retry:', err);
+      await db.update(datasets).set({
+        status: 'FAILED',
+        errorMessage: 'Failed to contact analysis worker: ' + (err.message || 'Worker unreachable')
+      }).where(eq(datasets.id, datasetId));
+    });
+
+    res.json({ message: 'Dataset analysis restarted successfully' });
+
+  } catch (error: any) {
+    console.error('Error retrying dataset analysis:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
 
 // DELETE /api/datasets/:id
 // Hard delete a dataset and all associated data
@@ -264,6 +433,20 @@ router.delete('/:id', authenticate, async (req: any, res: any) => {
     
     if (!dataset) {
       return res.status(404).json({ error: 'Dataset not found or unauthorized' });
+    }
+
+    // 0. If dataset is currently being processed, notify Python worker to stop immediately
+    if (dataset.status === 'ANALYSIS_IN_PROGRESS') {
+      try {
+        console.log(`Aborting ongoing analysis for dataset ${datasetId}...`);
+        await fetch('http://localhost:8001/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataset_id: datasetId }),
+        });
+      } catch (cancelErr) {
+        console.warn('Could not reach worker to cancel analysis (proceeding with deletion):', cancelErr);
+      }
     }
 
     // 1. Delete associated Feedback Results
@@ -293,7 +476,6 @@ router.delete('/:id', authenticate, async (req: any, res: any) => {
       }));
     } catch (s3Error) {
       console.error('Error deleting file from R2:', s3Error);
-      // Proceeding anyway since we've already deleted from DB, might leave orphaned file
     }
 
     // 5. Refund Storage Quota
@@ -302,7 +484,7 @@ router.delete('/:id', authenticate, async (req: any, res: any) => {
     
     if (subscription) {
       const currentUsed = Number(subscription.usedStorageMb);
-      const newUsed = Math.max(0, currentUsed - fileSizeMb); // Ensure it doesn't go below 0
+      const newUsed = Math.max(0, currentUsed - fileSizeMb);
       await db.update(activeSubscriptions)
         .set({ usedStorageMb: newUsed.toString() })
         .where(eq(activeSubscriptions.id, subscription.id));

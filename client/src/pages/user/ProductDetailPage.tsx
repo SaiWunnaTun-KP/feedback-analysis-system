@@ -108,12 +108,12 @@ export default function ProductDetailPage() {
           variant="outline"
           size="sm"
           onClick={() => navigate('/dashboard/reports')}
-          className="gap-2 bg-white text-slate-700"
+          className="gap-2 bg-card text-slate-700 hover:text-slate-900 border-slate-200"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Product Action Matrix</span>
         </Button>
-        <div className="p-8 text-center text-slate-500 bg-white rounded-xl border border-slate-200">
+        <div className="p-8 text-center text-slate-500 bg-card rounded-xl border border-slate-200">
           No product specified. Please select a product from the Product Action Matrix.
         </div>
       </div>
@@ -127,7 +127,7 @@ export default function ProductDetailPage() {
           variant="outline"
           size="sm"
           onClick={handleBack}
-          className="gap-2 bg-white text-slate-700"
+          className="gap-2 bg-card text-slate-700 hover:text-slate-900 border-slate-200"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Product Action Matrix</span>

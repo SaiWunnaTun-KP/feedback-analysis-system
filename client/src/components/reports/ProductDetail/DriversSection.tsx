@@ -33,31 +33,45 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
     return maxVal;
   }, [negativeDrivers, positiveDrivers]);
 
+  // Robust aspect matching supporting raw and punctuation-stripped strings
+  const isDriverSelected = (aspect: string) => {
+    if (!selectedAspect) return false;
+    const sNorm = selectedAspect.toLowerCase().replace(/[.,:;!?]+$/, '').trim();
+    const aNorm = aspect.toLowerCase().replace(/[.,:;!?]+$/, '').trim();
+    return sNorm === aNorm;
+  };
+
   return (
-    <Card className="shadow-sm border-slate-200/80 bg-white">
-      <CardHeader className="pb-3 border-b border-slate-100">
+    <Card className="shadow-sm border-slate-200/80 dark:border-slate-800 bg-card">
+      <CardHeader className="pb-3 border-b border-border/60">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <CardTitle className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
               <span>Section 1: Positive & Negative Drivers</span>
             </CardTitle>
-            <CardDescription className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <CardDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Aspects with the greatest impact on this product's Net Score. Click any driver to drill into its Word Cloud and Quotes.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-4">
+      <CardContent className="pt-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Column 1: Negative Drivers (Pink / Red) */}
+          {/* Column 1: Negative Drivers (Friction Points) */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-1 border-b border-rose-100">
-              <h3 className="font-semibold text-sm text-rose-700 flex items-center gap-1.5">
-                <ThumbsDown className="h-4 w-4" />
-                Negative Drivers (Friction Points)
-              </h3>
-              <span className="text-xs text-rose-600 font-medium">
+            <div className="flex items-center justify-between pb-2 border-b border-rose-500/20">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-rose-500/10 text-rose-500 dark:text-rose-400">
+                  <ThumbsDown className="h-4 w-4" />
+                </span>
+                <h3 className="font-semibold text-sm text-foreground">
+                  Negative Drivers
+                  <span className="text-xs font-normal text-muted-foreground ml-1.5">(Friction Points)</span>
+                </h3>
+              </div>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                 {negativeDrivers.length} {negativeDrivers.length === 1 ? 'driver' : 'drivers'}
               </span>
             </div>
@@ -65,7 +79,7 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
             {isLoading ? (
               <div className="space-y-2.5">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-20 bg-rose-50/50 rounded-lg animate-pulse border border-rose-100" />
+                  <div key={i} className="h-20 bg-muted/40 rounded-xl animate-pulse border border-border/50" />
                 ))}
               </div>
             ) : negativeDrivers.length > 0 ? (
@@ -76,27 +90,32 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
                     driver={driver}
                     type="negative"
                     maxImpact={maxImpact}
-                    isSelected={selectedAspect?.toLowerCase() === driver.aspect.toLowerCase()}
+                    isSelected={isDriverSelected(driver.aspect)}
                     onClick={onAspectClick}
                   />
                 ))}
               </div>
             ) : (
-              <div className="p-6 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50/50 text-slate-400 text-xs flex flex-col items-center justify-center gap-1.5">
-                <AlertCircle className="h-5 w-5 text-slate-300" />
+              <div className="p-8 text-center rounded-xl border border-dashed border-border bg-muted/20 text-muted-foreground text-xs flex flex-col items-center justify-center gap-2">
+                <AlertCircle className="h-5 w-5 text-muted-foreground/60" />
                 <span>No significant negative drivers identified for this product.</span>
               </div>
             )}
           </div>
 
-          {/* Column 2: Positive Drivers (Green / Emerald) */}
+          {/* Column 2: Positive Drivers (Brand Champions) */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-1 border-b border-emerald-100">
-              <h3 className="font-semibold text-sm text-emerald-700 flex items-center gap-1.5">
-                <ThumbsUp className="h-4 w-4" />
-                Positive Drivers (Brand Champions)
-              </h3>
-              <span className="text-xs text-emerald-600 font-medium">
+            <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
+                  <ThumbsUp className="h-4 w-4" />
+                </span>
+                <h3 className="font-semibold text-sm text-foreground">
+                  Positive Drivers
+                  <span className="text-xs font-normal text-muted-foreground ml-1.5">(Brand Champions)</span>
+                </h3>
+              </div>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 {positiveDrivers.length} {positiveDrivers.length === 1 ? 'driver' : 'drivers'}
               </span>
             </div>
@@ -104,7 +123,7 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
             {isLoading ? (
               <div className="space-y-2.5">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-20 bg-emerald-50/50 rounded-lg animate-pulse border border-emerald-100" />
+                  <div key={i} className="h-20 bg-muted/40 rounded-xl animate-pulse border border-border/50" />
                 ))}
               </div>
             ) : positiveDrivers.length > 0 ? (
@@ -115,14 +134,14 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
                     driver={driver}
                     type="positive"
                     maxImpact={maxImpact}
-                    isSelected={selectedAspect?.toLowerCase() === driver.aspect.toLowerCase()}
+                    isSelected={isDriverSelected(driver.aspect)}
                     onClick={onAspectClick}
                   />
                 ))}
               </div>
             ) : (
-              <div className="p-6 text-center rounded-lg border border-dashed border-slate-200 bg-slate-50/50 text-slate-400 text-xs flex flex-col items-center justify-center gap-1.5">
-                <Sparkles className="h-5 w-5 text-slate-300" />
+              <div className="p-8 text-center rounded-xl border border-dashed border-border bg-muted/20 text-muted-foreground text-xs flex flex-col items-center justify-center gap-2">
+                <AlertCircle className="h-5 w-5 text-muted-foreground/60" />
                 <span>No significant positive drivers identified for this product.</span>
               </div>
             )}
@@ -132,4 +151,3 @@ export const DriversSection: React.FC<DriversSectionProps> = ({
     </Card>
   );
 };
-

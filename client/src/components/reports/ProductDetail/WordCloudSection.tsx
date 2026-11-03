@@ -52,7 +52,7 @@ export const WordCloudSection = React.forwardRef<HTMLDivElement, WordCloudSectio
 
     return (
       <div ref={ref} className="scroll-mt-6">
-        <Card className="shadow-sm border-slate-200/80 bg-white">
+        <Card className="shadow-sm border-slate-200/80 bg-card">
           <CardHeader className="pb-3 border-b border-slate-100">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>

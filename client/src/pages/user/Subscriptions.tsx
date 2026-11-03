@@ -102,12 +102,12 @@ export default function Subscriptions() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-blue-400" />
+                <CreditCard className="h-5 w-5 text-emerald-400" />
                 <h3 className="text-lg font-medium text-slate-300">Current Active Plan</h3>
               </div>
               <div className="text-4xl font-bold text-white flex items-center gap-3">
                 {currentPlan ? currentPlan.name : (isFreeTier ? 'Free Trial' : 'No Active Plan')}
-                {currentPlan && <Badge className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/20">Active</Badge>}
+                {currentPlan && <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30">Active</Badge>}
               </div>
               {subscription && (
                 <p className="text-slate-400 mt-2">
@@ -167,51 +167,65 @@ export default function Subscriptions() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {visiblePlans.map((p: any) => (
-            <Card key={p.id} className={`shadow-sm border-slate-200/50 relative overflow-hidden transition-all hover:shadow-md ${currentPlan?.id === p.id ? 'ring-2 ring-blue-600' : ''}`}>
-              {currentPlan?.id === p.id && (
-                <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">
-                  CURRENT
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Crown className="h-4 w-4 text-amber-500" />
-                  {p.name}
-                </CardTitle>
-                <CardDescription>Best for retail analysis</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-3xl font-bold text-slate-900">
-                  ${p.price} <span className="text-sm font-normal text-slate-500">/ {p.durationDays} days</span>
-                </p>
-                <ul className="space-y-2 text-sm text-slate-600">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                    {p.maxStorageMb} MB Storage Quota
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                    Priority Support
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                    Advanced Export Options
-                  </li>
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  className="w-full" 
-                  variant={currentPlan?.id === p.id ? "outline" : "default"}
-                  disabled={currentPlan?.id === p.id || purchaseMutation.isPending}
-                  onClick={() => purchaseMutation.mutate(p.id)}
-                >
-                  {currentPlan?.id === p.id ? 'Active Plan' : 'Purchase / Upgrade'}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          {visiblePlans.map((p: any) => {
+            const isCurrent = currentPlan?.id === p.id;
+            return (
+              <Card 
+                key={p.id} 
+                className={`shadow-sm relative overflow-hidden transition-all hover:shadow-md ${
+                  isCurrent 
+                    ? 'ring-2 ring-emerald-600 border-emerald-500/40 dark:ring-emerald-500 dark:border-emerald-500/50 shadow-emerald-500/5' 
+                    : 'border-slate-200/50'
+                }`}
+              >
+                {isCurrent && (
+                  <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg shadow-xs tracking-wider">
+                    CURRENT
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-amber-500" />
+                    {p.name}
+                  </CardTitle>
+                  <CardDescription>Best for retail analysis</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-3xl font-bold text-slate-900">
+                    ${p.price} <span className="text-sm font-normal text-slate-500">/ {p.durationDays} days</span>
+                  </p>
+                  <ul className="space-y-2 text-sm text-slate-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className={`h-4 w-4 ${isCurrent ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600'}`} />
+                      {p.maxStorageMb} MB Storage Quota
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className={`h-4 w-4 ${isCurrent ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600'}`} />
+                      Priority Support
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className={`h-4 w-4 ${isCurrent ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600'}`} />
+                      Advanced Export Options
+                    </li>
+                  </ul>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    className={`w-full ${
+                      isCurrent 
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-950/60' 
+                        : ''
+                    }`}
+                    variant={isCurrent ? "outline" : "default"}
+                    disabled={isCurrent || purchaseMutation.isPending}
+                    onClick={() => purchaseMutation.mutate(p.id)}
+                  >
+                    {isCurrent ? 'Active Plan' : 'Purchase / Upgrade'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
           {visiblePlans.length === 0 && (
             <p className="text-slate-500 italic">No plans available at the moment.</p>
           )}

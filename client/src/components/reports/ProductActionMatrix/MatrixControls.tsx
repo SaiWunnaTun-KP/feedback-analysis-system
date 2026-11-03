@@ -58,7 +58,7 @@ export const MatrixControls: React.FC<MatrixControlsProps> = ({
         <Input
           type="text"
           placeholder="Search products by name..."
-          className="pl-9 pr-8 h-9 text-sm bg-white border-slate-200 focus-visible:ring-1 focus-visible:ring-indigo-500"
+          className="pl-9 pr-8 h-9 text-sm bg-card border-slate-200 focus-visible:ring-1 focus-visible:ring-indigo-500"
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
         />
@@ -78,7 +78,7 @@ export const MatrixControls: React.FC<MatrixControlsProps> = ({
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         {/* Sort Dropdown */}
         <Select value={sortBy} onValueChange={(val: SortOption) => onSortChange(val)}>
-          <SelectTrigger className="w-[170px] h-9 text-xs sm:text-sm bg-white border-slate-200">
+          <SelectTrigger className="w-[170px] h-9 text-xs sm:text-sm bg-card border-slate-200">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -94,7 +94,7 @@ export const MatrixControls: React.FC<MatrixControlsProps> = ({
           value={String(minVolume)}
           onValueChange={(val) => onMinVolumeChange(Number(val))}
         >
-          <SelectTrigger className="w-[145px] h-9 text-xs sm:text-sm bg-white border-slate-200">
+          <SelectTrigger className="w-[145px] h-9 text-xs sm:text-sm bg-card border-slate-200">
             <SelectValue placeholder="Min. Volume" />
           </SelectTrigger>
           <SelectContent>

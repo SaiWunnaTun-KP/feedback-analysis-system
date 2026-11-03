@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from app.schemas.dataset import AnalyzeRequest
-from app.services.processor import process_dataset
+from app.services.processor import process_dataset, cancel_dataset
 
 logging.basicConfig(level=logging.INFO)
 
@@ -31,4 +31,13 @@ def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     return {
         "status": "processing",
         "message": f"Dataset {request.dataset_id} analysis started in the background."
+    }
+
+@app.post("/cancel")
+def cancel_analysis(request: AnalyzeRequest):
+    logging.info(f"Received cancel request for dataset_id: {request.dataset_id}")
+    cancel_dataset(request.dataset_id)
+    return {
+        "status": "cancelled",
+        "message": f"Dataset {request.dataset_id} analysis cancellation requested."
     }

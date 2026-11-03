@@ -596,7 +596,8 @@ async function getProductDetailHandler(req: any, res: any) {
       sql`f.opinion != ''`
     ];
     if (filterAspect && filterAspect !== 'all') {
-      wcConditions.push(sql`f.aspect = ${filterAspect}`);
+      const cleanAspect = String(filterAspect).replace(/[.,:;!?]+$/, '').trim();
+      wcConditions.push(sql`(f.aspect = ${filterAspect} OR TRIM(TRAILING '.,:;!?' FROM f.aspect) = ${cleanAspect} OR f.aspect ILIKE ${cleanAspect + '%'})`);
     }
     if (filterKeyword) {
       wcConditions.push(sql`f.opinion ILIKE ${'%' + filterKeyword + '%'}`);
@@ -624,7 +625,8 @@ async function getProductDetailHandler(req: any, res: any) {
       sql`r.product_name = ${productName}`
     ];
     if (filterAspect && filterAspect !== 'all') {
-      quoteConditions.push(sql`f.aspect = ${filterAspect}`);
+      const cleanAspect = String(filterAspect).replace(/[.,:;!?]+$/, '').trim();
+      quoteConditions.push(sql`(f.aspect = ${filterAspect} OR TRIM(TRAILING '.,:;!?' FROM f.aspect) = ${cleanAspect} OR f.aspect ILIKE ${cleanAspect + '%'})`);
     }
     if (filterKeyword) {
       quoteConditions.push(sql`(f.opinion ILIKE ${'%' + filterKeyword + '%'} OR r.review_text ILIKE ${'%' + filterKeyword + '%'})`);

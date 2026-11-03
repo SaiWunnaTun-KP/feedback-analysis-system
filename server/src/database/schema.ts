@@ -58,6 +58,9 @@ export const datasets = pgTable('datasets', {
   filePath: varchar('file_path', { length: 255 }).notNull(),
   fileSizeMb: numeric('file_size_mb', { precision: 10, scale: 2 }).notNull(),
   status: datasetStatusEnum('status').default('PENDING').notNull(),
+  totalReviews: integer('total_reviews').default(0).notNull(),
+  processedReviews: integer('processed_reviews').default(0).notNull(),
+  errorMessage: varchar('error_message', { length: 1000 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

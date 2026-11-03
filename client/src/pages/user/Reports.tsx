@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { datasetsApi, reportsApi } from '../../services/api';
@@ -32,16 +32,46 @@ export default function Reports() {
     queryFn: () => datasetsApi.get({ all: true }),
   });
 
-  const datasets: any[] = Array.isArray(datasetsData) 
-    ? datasetsData 
-    : (datasetsData?.datasets || []);
+  const datasets: any[] = useMemo(() => {
+    return Array.isArray(datasetsData) 
+      ? datasetsData 
+      : (datasetsData?.datasets || []);
+  }, [datasetsData]);
 
-  const completedDatasets = datasets.filter((d: any) => d.status === 'COMPLETED');
+  // Sort completed datasets descending by creation date (newest first)
+  const completedDatasets = useMemo(() => {
+    return datasets
+      .filter((d: any) => d.status === 'COMPLETED')
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [datasets]);
 
   const queryDatasetId = searchParams.get('datasetId');
-  const defaultDatasetId = queryDatasetId || (completedDatasets.length > 0 ? completedDatasets[0].id.toString() : '');
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(() => queryDatasetId || '');
 
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(defaultDatasetId);
+  // Automatically default to the latest completed dataset if no valid dataset is selected
+  useEffect(() => {
+    if (completedDatasets.length === 0) return;
+
+    const currentQueryId = searchParams.get('datasetId');
+    const isValidQueryId = currentQueryId && completedDatasets.some((d: any) => d.id.toString() === currentQueryId);
+
+    if (isValidQueryId) {
+      if (selectedDatasetId !== currentQueryId) {
+        setSelectedDatasetId(currentQueryId);
+      }
+    } else {
+      // Latest completed dataset is at index 0
+      const latestDatasetId = completedDatasets[0].id.toString();
+      if (selectedDatasetId !== latestDatasetId) {
+        setSelectedDatasetId(latestDatasetId);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('datasetId', latestDatasetId);
+          return next;
+        }, { replace: true });
+      }
+    }
+  }, [completedDatasets, searchParams, selectedDatasetId, setSearchParams]);
 
   // Filters for drilldown and other components
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
@@ -49,7 +79,11 @@ export default function Reports() {
 
   const handleDatasetChange = (val: string) => {
     setSelectedDatasetId(val);
-    setSearchParams({ datasetId: val });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('datasetId', val);
+      return next;
+    }, { replace: true });
     setSelectedProduct(null);
     setFilterAspect(null);
   };
@@ -72,7 +106,14 @@ export default function Reports() {
   }, [overviewData]);
 
   if (loadingDatasets) {
-    return <div className="p-8 text-center text-slate-500">Loading reports...</div>;
+    return (
+      <div className="flex items-center justify-center py-24 text-slate-500">
+        <div className="flex items-center gap-3">
+          <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <span>Loading reports...</span>
+        </div>
+      </div>
+    );
   }
 
   if (completedDatasets.length === 0) {
@@ -99,7 +140,7 @@ export default function Reports() {
 
         <div className="flex items-center gap-3">
           <Select value={selectedDatasetId} onValueChange={handleDatasetChange}>
-            <SelectTrigger className="w-[280px] bg-white">
+            <SelectTrigger className="w-[280px] bg-card border-slate-200">
               <SelectValue placeholder="Select a dataset" />
             </SelectTrigger>
             <SelectContent>
@@ -168,7 +209,7 @@ export default function Reports() {
             return (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {/* 1. Feedback Volume Card */}
-                <div className="bg-[#f0f4f9] rounded-2xl border border-slate-200/80 p-6 flex flex-col justify-between shadow-sm min-h-[220px]">
+                <div className="bg-slate-100/70 dark:bg-card rounded-2xl border border-slate-200 p-6 flex flex-col justify-between shadow-xs min-h-[220px]">
                   <h3 className="text-base font-semibold text-slate-800 tracking-tight">
                     Feedback volume
                   </h3>
@@ -183,7 +224,7 @@ export default function Reports() {
                 </div>
 
                 {/* 2. Sentiment Breakdown Card with Donut & Avg Score */}
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm min-h-[220px] flex flex-col justify-between">
+                <div className="bg-card rounded-2xl border border-slate-200 p-6 shadow-xs min-h-[220px] flex flex-col justify-between">
                   <h3 className="text-base font-semibold text-slate-800 tracking-tight">
                     Sentiment
                   </h3>
@@ -192,21 +233,21 @@ export default function Reports() {
                     <div className="space-y-3.5 flex-1 max-w-[150px]">
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2.5 font-medium text-slate-700">
-                          <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-sm shadow-emerald-200" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#34d399] shadow-xs shadow-emerald-200 dark:shadow-none" />
                           Positive
                         </span>
                         <span className="font-semibold text-slate-900">{positivePct}%</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2.5 font-medium text-slate-700">
-                          <span className="h-2.5 w-2.5 rounded-full bg-[#fda4af] shadow-sm shadow-rose-200" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#fda4af] shadow-xs shadow-rose-200 dark:shadow-none" />
                           Negative
                         </span>
                         <span className="font-semibold text-slate-900">{negativePct}%</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-2.5 font-medium text-slate-700">
-                          <span className="h-2.5 w-2.5 rounded-full bg-[#93c5fd] shadow-sm shadow-sky-200" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-[#93c5fd] shadow-xs shadow-sky-200 dark:shadow-none" />
                           Neutral
                         </span>
                         <span className="font-semibold text-slate-900">{neutralPct}%</span>
@@ -221,7 +262,7 @@ export default function Reports() {
                           cx="50"
                           cy="50"
                           r={radius}
-                          stroke="#f1f5f9"
+                          className="stroke-slate-100 dark:stroke-slate-800"
                           strokeWidth="8"
                           fill="none"
                         />
@@ -290,10 +331,10 @@ export default function Reports() {
                 {/* 3. Section 3: Stacked Cards (Top Score & Critical Product) */}
                 <div className="flex flex-col gap-4 h-full">
                   {/* Top Score Product Card */}
-                  <div className="flex-1 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col justify-between hover:border-emerald-300 transition-colors">
+                  <div className="flex-1 bg-card rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between hover:border-emerald-300 dark:hover:border-emerald-500/50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                        <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           <TrendingUp className="h-4 w-4" />
                         </span>
                         <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -301,11 +342,11 @@ export default function Reports() {
                         </span>
                       </div>
                       {topProductObj?.score ? (
-                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                           ★ {topProductObj.score}
                         </span>
                       ) : (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                           Top Rated
                         </span>
                       )}
@@ -316,7 +357,7 @@ export default function Reports() {
                       </h4>
                       <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                         {topProductObj?.positivePct !== undefined ? (
-                          <span className="text-emerald-600 font-semibold">{topProductObj.positivePct}% Positive</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{topProductObj.positivePct}% Positive</span>
                         ) : null}
                         {topProductObj?.totalReviews ? (
                           <span className="text-slate-400">• {topProductObj.totalReviews} feedbacks</span>
@@ -326,10 +367,10 @@ export default function Reports() {
                   </div>
 
                   {/* Critical Product Card */}
-                  <div className="flex-1 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col justify-between hover:border-rose-300 transition-colors">
+                  <div className="flex-1 bg-card rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between hover:border-rose-300 dark:hover:border-rose-500/50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
+                        <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
                           <AlertCircle className="h-4 w-4" />
                         </span>
                         <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -337,11 +378,11 @@ export default function Reports() {
                         </span>
                       </div>
                       {criticalProductObj?.negativePct ? (
-                        <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
+                        <span className="text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2.5 py-0.5 rounded-full border border-rose-500/20">
                           {criticalProductObj.negativePct}% Negative
                         </span>
                       ) : (
-                        <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
                           Needs Review
                         </span>
                       )}
@@ -351,7 +392,7 @@ export default function Reports() {
                         {criticalProductName}
                       </h4>
                       <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                        <span className="text-rose-600 font-semibold">Needs Attention</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-semibold">Needs Attention</span>
                         {criticalProductObj?.totalReviews ? (
                           <span className="text-slate-400">• {criticalProductObj.totalReviews} feedbacks</span>
                         ) : null}
@@ -435,8 +476,21 @@ export default function Reports() {
           />
         </>
       ) : (
-        <div className="p-8 text-center text-slate-500 bg-white rounded-xl border border-slate-200/50 flex items-center justify-center gap-3">
-          {loadingOverview ? 'Loading report data...' : 'Please select a valid dataset to view its report.'}
+        <div className="p-12 text-center text-slate-500 bg-card rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-3 shadow-xs">
+          {loadingOverview ? (
+            <div className="flex items-center gap-3 text-slate-600 font-medium">
+              <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <span>Loading report data...</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <BarChart3 className="h-8 w-8 text-slate-400" />
+              <p className="text-slate-800 font-semibold">Please select a valid dataset</p>
+              <p className="text-xs text-slate-400 max-w-sm">
+                Choose a completed dataset from the dropdown above to view insights, performance charts, and product action matrices.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

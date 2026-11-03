@@ -23,8 +23,8 @@ export const QuoteCard: React.FC<QuoteCardProps> = ({ quote, type }) => {
       className={cn(
         "p-4 rounded-xl border transition-all duration-150 flex flex-col justify-between gap-3 text-xs sm:text-sm",
         isPositive
-          ? "border-emerald-100 bg-white hover:border-emerald-300 shadow-2xs hover:shadow-xs"
-          : "border-rose-100 bg-white hover:border-rose-300 shadow-2xs hover:shadow-xs"
+          ? "border-emerald-100 dark:border-emerald-500/20 bg-card hover:border-emerald-300 dark:hover:border-emerald-500/40 shadow-2xs hover:shadow-xs"
+          : "border-rose-100 dark:border-rose-500/20 bg-card hover:border-rose-300 dark:hover:border-rose-500/40 shadow-2xs hover:shadow-xs"
       )}
     >
       {/* Review Text */}

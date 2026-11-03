@@ -86,7 +86,7 @@ export const ProductHeatmapView: React.FC<ProductHeatmapViewProps> = ({
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-2xs" aria-busy="true">
+      <div className="rounded-xl border border-slate-200/80 bg-card overflow-hidden shadow-2xs" aria-busy="true">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div className="h-4 bg-slate-200 rounded w-1/4 animate-pulse" />
           <div className="flex gap-4">
@@ -148,7 +148,7 @@ export const ProductHeatmapView: React.FC<ProductHeatmapViewProps> = ({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-2xs">
+    <div className="rounded-xl border border-slate-200/80 bg-card overflow-hidden shadow-2xs">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-50/80">
