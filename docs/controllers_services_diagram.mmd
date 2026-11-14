@@ -1,0 +1,103 @@
+classDiagram
+    class AuthMiddleware {
+        +authenticate(req: Request, res: Response, next: NextFunction)
+        +requireAdmin(req: Request, res: Response, next: NextFunction)
+        +optionalAuthenticate(req: Request, res: Response, next: NextFunction)
+    }
+
+    class AuthController {
+        +register(req: Request, res: Response)
+        +login(req: Request, res: Response)
+    }
+
+    class AdminAuthController {
+        +login(req: Request, res: Response)
+        +getLockoutStatus(req: Request, res: Response)
+    }
+
+    class AdminUserController {
+        +getAllUsers(req: Request, res: Response)
+        +getUserById(req: Request, res: Response)
+        +updateUser(req: Request, res: Response)
+        +updateUserStatus(req: Request, res: Response)
+        +getUserFeedbacks(req: Request, res: Response)
+    }
+
+    class DatasetRouter {
+        +getActiveDataset(req: Request, res: Response)
+        +getUserDatasets(req: Request, res: Response)
+        +uploadDataset(req: Request, res: Response)
+        +retryDataset(req: Request, res: Response)
+        +deleteDataset(req: Request, res: Response)
+    }
+
+    class ReportsRouter {
+        +getProductMatrix(req: Request, res: Response)
+        +getOverview(req: Request, res: Response)
+        +getDrilldown(req: Request, res: Response)
+        +getProductDetail(req: Request, res: Response)
+    }
+
+    class SubscriptionRouter {
+        +getMySubscription(req: Request, res: Response)
+        +createSubscription(req: Request, res: Response)
+        +cancelSubscription(req: Request, res: Response)
+        +purchasePlan(req: Request, res: Response)
+        +getInvoices(req: Request, res: Response)
+        +syncSubscription(req: Request, res: Response)
+    }
+
+    class PlansRouter {
+        +getPlans(req: Request, res: Response)
+        +createPlan(req: Request, res: Response)
+        +updatePlan(req: Request, res: Response)
+        +activatePlan(req: Request, res: Response)
+        +deactivatePlan(req: Request, res: Response)
+        +deletePlan(req: Request, res: Response)
+    }
+
+    class FeedbacksRouter {
+        +submitFeedback(req: Request, res: Response)
+        +getMyFeedbacks(req: Request, res: Response)
+        +getAllFeedbacks(req: Request, res: Response)
+        +getFeedbackById(req: Request, res: Response)
+        +updateStatus(req: Request, res: Response)
+        +replyFeedback(req: Request, res: Response)
+        +deleteFeedback(req: Request, res: Response)
+    }
+
+    class ProfileRouter {
+        +getProfile(req: Request, res: Response)
+        +updateProfile(req: Request, res: Response)
+        +requestCode(req: Request, res: Response)
+        +verifyCode(req: Request, res: Response)
+        +resetPassword(req: Request, res: Response)
+        +deleteAccount(req: Request, res: Response)
+    }
+
+    class StripeService {
+        -Stripe stripeClient
+        +createStripeProduct(name: string, description: string)
+        +createStripePrice(productId: string, amount: number)
+        +getOrCreateCustomer(email: string, name: string)
+    }
+
+    class EmailService {
+        -Transporter smtpTransporter
+        +sendVerificationEmail(to: string, code: string, name: string)
+        +sendSuspensionEmail(to: string, name: string, reason: string)
+        +sendReactivationEmail(to: string, name: string)
+        +sendFeedbackReplyEmail(to: string, subject: string, reply: string)
+    }
+
+    AdminUserController ..> AuthMiddleware : uses
+    AdminUserController ..> EmailService : uses
+    DatasetRouter ..> AuthMiddleware : uses
+    SubscriptionRouter ..> AuthMiddleware : uses
+    SubscriptionRouter ..> StripeService : uses
+    FeedbacksRouter ..> AuthMiddleware : uses
+    FeedbacksRouter ..> EmailService : uses
+    PlansRouter ..> AuthMiddleware : uses
+    ProfileRouter ..> AuthMiddleware : uses
+    ProfileRouter ..> EmailService : uses
+

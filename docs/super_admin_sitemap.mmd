@@ -1,0 +1,50 @@
+graph TD
+    Dashboard["Dashboard"]
+
+    %% Main Navigation Modules (Horizontal Spread)
+    Dashboard --> MPlans["Manage Plans"]
+    Dashboard --> MFeedbacks["Manage User Feedbacks"]
+    Dashboard --> MUsers["Manage Users"]
+    Dashboard --> MFaqs["Manage FAQs"]
+    Dashboard --> MPolicies["Manage Terms & Policies"]
+    Dashboard --> ALogout["Logout"]
+
+    %% 1. Manage Plans Column (Vertical Stacking)
+    MPlans --> MP_View["View Plans List"]
+    MPlans --> MP_Create["Create New Plan"]
+    MPlans --> MP_Edit["Edit Plan"]
+    MPlans --> MP_Toggle["Activate / Deactivate Plan"]
+    MPlans --> MP_Delete["Delete Plan"]
+    MP_View ~~~ MP_Create ~~~ MP_Edit ~~~ MP_Toggle ~~~ MP_Delete
+
+    %% 2. Manage User Feedbacks Column (Vertical Stacking)
+    MFeedbacks --> MF_List["View All Feedbacks"]
+    MFeedbacks --> MF_Search["Search & Filter Feedbacks"]
+    MFeedbacks --> MF_Detail["View Feedback Details"]
+    MFeedbacks --> MF_Reply["Reply to Feedback Email"]
+    MFeedbacks --> MF_Status["Update Feedback Status"]
+    MFeedbacks --> MF_Delete["Delete Feedback"]
+    MF_List ~~~ MF_Search ~~~ MF_Detail ~~~ MF_Reply ~~~ MF_Status ~~~ MF_Delete
+
+    %% 3. Manage Users Column (Vertical Stacking)
+    MUsers --> MU_List["View Registered Users"]
+    MUsers --> MU_Filter["Filter & Search Users"]
+    MUsers --> MU_Detail["View User Details & Plan"]
+    MUsers --> MU_Suspend["Suspend User Account"]
+    MUsers --> MU_Reactivate["Reactivate User Account"]
+    MUsers --> MU_Feedbacks["View User Feedbacks"]
+    MU_List ~~~ MU_Filter ~~~ MU_Detail ~~~ MU_Suspend ~~~ MU_Reactivate ~~~ MU_Feedbacks
+
+    %% 4. Manage FAQs Column (Vertical Stacking)
+    MFaqs --> MQ_List["View All FAQs"]
+    MFaqs --> MQ_Create["Create New FAQ"]
+    MFaqs --> MQ_Edit["Edit FAQ"]
+    MFaqs --> MQ_Toggle["Toggle FAQ Visibility"]
+    MFaqs --> MQ_Delete["Delete FAQ"]
+    MQ_List ~~~ MQ_Create ~~~ MQ_Edit ~~~ MQ_Toggle ~~~ MQ_Delete
+
+    %% 5. Manage Terms & Policies Column (Vertical Stacking)
+    MPolicies --> MP_Terms["Edit Terms of Service"]
+    MPolicies --> MP_Privacy["Edit Privacy Policy"]
+    MPolicies --> MP_Version["Version Management"]
+    MP_Terms ~~~ MP_Privacy ~~~ MP_Version

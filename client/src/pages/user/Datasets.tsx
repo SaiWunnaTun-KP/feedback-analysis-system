@@ -23,7 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
-  RotateCw
+  RotateCw,
+  Square
 } from 'lucide-react';
 import { Link } from 'react-router';
 import {
@@ -95,6 +96,16 @@ export default function Datasets() {
       toast.success('Dataset analysis restarted!');
     },
     onError: (error: any) => toast.error(error.message || 'Failed to retry dataset analysis'),
+  });
+
+  const stopMutation = useMutation({
+    mutationFn: (id: number) => datasetsApi.stop(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      queryClient.invalidateQueries({ queryKey: ['activeDatasetProgress'] });
+      toast.info('Analysis stopped. You can click Try Again whenever you are ready.');
+    },
+    onError: (error: any) => toast.error(error.message || 'Failed to stop analysis'),
   });
 
   const deleteMutation = useMutation({
@@ -493,6 +504,19 @@ export default function Datasets() {
                       )}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
+                      {d.status === 'ANALYSIS_IN_PROGRESS' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-8"
+                          disabled={stopMutation.isPending && (stopMutation.variables === d.id)}
+                          onClick={() => stopMutation.mutate(d.id)}
+                          title="Stop ongoing analysis and allow retry"
+                        >
+                          <Square className={`h-3 w-3 fill-current ${stopMutation.isPending && stopMutation.variables === d.id ? 'animate-spin' : ''}`} />
+                          <span>{stopMutation.isPending && stopMutation.variables === d.id ? 'Stopping...' : 'Stop Analysis'}</span>
+                        </Button>
+                      )}
                       {d.status === 'COMPLETED' && (
                         <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40" asChild>
                           <Link to={`/dashboard/reports?datasetId=${d.id}`}>

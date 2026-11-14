@@ -404,57 +404,7 @@ export default function Reports() {
             );
           })()}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Doughnut Chart */}
-            <Card className="shadow-sm border-slate-200/50 h-[440px] flex flex-col lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <PieChartIcon className="h-4 w-4 text-blue-600" /> Sentiment Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 min-h-0 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={overviewData.executiveOverview.sentimentBreakdown}
-                      innerRadius={80}
-                      outerRadius={120}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {overviewData.executiveOverview.sentimentBreakdown.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip
-                      formatter={(value: any, name: any) => {
-                        const total = overviewData.executiveOverview.sentimentBreakdown.reduce((sum: number, entry: any) => sum + (entry.value || 0), 0);
-                        const percent = total > 0 ? ((Number(value) / total) * 100).toFixed(1) : "0.0";
-                        return [`${value} (${percent}%)`, name];
-                      }}
-                    />
-                    <Legend verticalAlign="bottom" height={36} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Stacked Bar Chart */}
-            <Card className="shadow-sm border-slate-200/50 h-[440px] flex flex-col lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-blue-600" /> Aspect Performance
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 min-h-0 relative">
-                <AspectPerformanceChart
-                  data={overviewData.aspectPerformance}
-                  selectedAspect={filterAspect}
-                  onAspectSelect={setFilterAspect}
-                />
-              </CardContent>
-            </Card>
-          </div>
+          
 
           {/* Product Action Matrix (Server-Driven) */}
           <ProductActionMatrix

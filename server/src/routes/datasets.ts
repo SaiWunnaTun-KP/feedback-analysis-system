@@ -21,6 +21,8 @@ const s3Client = new S3Client({
   },
 });
 
+const WORKER_URL = process.env.WORKER_URL || 'http://localhost:8001';
+
 // Helper functions for matching columns exactly (stripping non-alphanumeric chars)
 const getNorm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -36,6 +38,69 @@ const isReviewCol = (h: string) => {
   return validAliases.includes(norm);
 };
 
+/**
+ * Watchdog helper:
+ * Verifies if the Python worker is actively running and processing the dataset.
+ * If the worker is offline, paused, or no longer processing the dataset, automatically
+ * updates its status to 'FAILED' so the user is not stuck and can click Try Again.
+ */
+async function verifyWorkerAndReconcileDataset(dataset: any): Promise<boolean> {
+  if (!dataset || dataset.status !== 'ANALYSIS_IN_PROGRESS') {
+    return false;
+  }
+
+  const ageMs = Date.now() - new Date(dataset.createdAt || dataset.updatedAt).getTime();
+  let isWorkerReachable = false;
+  let activeDatasets: number[] = [];
+
+  try {
+    const healthRes = await fetch(`${WORKER_URL}/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+
+    if (healthRes.ok) {
+      const data: any = await healthRes.json();
+      isWorkerReachable = true;
+      activeDatasets = Array.isArray(data.active_datasets) ? data.active_datasets : [];
+    }
+  } catch (err) {
+    isWorkerReachable = false;
+  }
+
+  // Case 1: Worker is offline, paused (timed out), or connection refused
+  if (!isWorkerReachable) {
+    console.warn(`[Watchdog] Worker is unreachable or paused. Marking dataset ${dataset.id} as FAILED.`);
+    const errorMsg = 'Analysis stopped: Python worker service is offline or paused. Please restart the worker and click Try Again.';
+    await db.update(datasets).set({
+      status: 'FAILED',
+      errorMessage: errorMsg,
+      updatedAt: new Date(),
+    }).where(eq(datasets.id, dataset.id));
+
+    dataset.status = 'FAILED';
+    dataset.errorMessage = errorMsg;
+    return false;
+  }
+
+  // Case 2: Worker is running, but dataset is not actively being processed
+  // Allow a 15-second grace period for newly uploaded datasets during initial CSV parsing & review insertion
+  if (ageMs > 15000 && !activeDatasets.includes(dataset.id)) {
+    console.warn(`[Watchdog] Worker is alive, but dataset ${dataset.id} is not in active_datasets. Marking as FAILED.`);
+    const errorMsg = 'Analysis interrupted: Worker is not actively processing this dataset. Please click Try Again to restart.';
+    await db.update(datasets).set({
+      status: 'FAILED',
+      errorMessage: errorMsg,
+      updatedAt: new Date(),
+    }).where(eq(datasets.id, dataset.id));
+
+    dataset.status = 'FAILED';
+    dataset.errorMessage = errorMsg;
+    return false;
+  }
+
+  return true;
+}
+
 // GET /api/datasets/active
 // Returns the currently active dataset in progress (if any) for the user
 router.get('/active', authenticate, async (req: any, res: any) => {
@@ -48,7 +113,16 @@ router.get('/active', authenticate, async (req: any, res: any) => {
       .orderBy(desc(datasets.updatedAt))
       .limit(1);
 
-    res.json({ activeDataset: active || null });
+    if (!active) {
+      return res.json({ activeDataset: null });
+    }
+
+    const isStillActive = await verifyWorkerAndReconcileDataset(active);
+    if (!isStillActive) {
+      return res.json({ activeDataset: null });
+    }
+
+    res.json({ activeDataset: active });
   } catch (error) {
     console.error('Error fetching active dataset:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -76,6 +150,12 @@ router.get('/', authenticate, async (req: any, res: any) => {
         .from(datasets)
         .where(eq(datasets.userId, userId))
         .orderBy(desc(datasets.createdAt));
+
+      for (const d of userDatasets) {
+        if (d.status === 'ANALYSIS_IN_PROGRESS') {
+          await verifyWorkerAndReconcileDataset(d);
+        }
+      }
 
       return res.json({
         datasets: userDatasets,
@@ -106,6 +186,12 @@ router.get('/', authenticate, async (req: any, res: any) => {
       .orderBy(desc(datasets.createdAt))
       .limit(limit)
       .offset(offset);
+
+    for (const d of userDatasets) {
+      if (d.status === 'ANALYSIS_IN_PROGRESS') {
+        await verifyWorkerAndReconcileDataset(d);
+      }
+    }
 
     res.json({
       datasets: userDatasets,
@@ -269,10 +355,11 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
           console.log(`Inserted ${results.length} reviews for dataset ${dataset.id}. Launching Python worker...`);
 
           // Trigger AI Microservice (Python FastAPI)
-          const workerRes = await fetch('http://localhost:8001/analyze', {
+          const workerRes = await fetch(`${WORKER_URL}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataset_id: dataset.id })
+            body: JSON.stringify({ dataset_id: dataset.id }),
+            signal: AbortSignal.timeout(3000),
           });
 
           if (!workerRes.ok) {
@@ -284,7 +371,7 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
           console.error(`Error processing reviews/launching worker for dataset ${dataset.id}:`, dbErr);
           await db.update(datasets).set({
             status: 'FAILED',
-            errorMessage: 'Analysis start error: ' + (dbErr.message || 'Failed to trigger worker')
+            errorMessage: 'Analysis start error: ' + (dbErr.message || 'Worker service is unreachable or paused. Please restart the worker and click Try Again.')
           }).where(eq(datasets.id, dataset.id));
         }
       });
@@ -295,6 +382,57 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
   } catch (error) {
     console.error('Error uploading dataset:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/datasets/:id/stop
+// Explicitly stop/abort an in-progress analysis and mark it as FAILED (allowing retry)
+router.post('/:id/stop', authenticate, async (req: any, res: any) => {
+  try {
+    const userId = req.user.userId;
+    const datasetId = parseInt(req.params.id, 10);
+
+    if (isNaN(datasetId)) {
+      return res.status(400).json({ error: 'Invalid dataset ID' });
+    }
+
+    const [dataset] = await db
+      .select()
+      .from(datasets)
+      .where(and(eq(datasets.id, datasetId), eq(datasets.userId, userId)));
+
+    if (!dataset) {
+      return res.status(404).json({ error: 'Dataset not found or unauthorized' });
+    }
+
+    if (dataset.status !== 'ANALYSIS_IN_PROGRESS') {
+      return res.status(400).json({ error: 'Dataset is not currently processing' });
+    }
+
+    // Attempt to notify worker to abort
+    try {
+      await fetch(`${WORKER_URL}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataset_id: datasetId }),
+        signal: AbortSignal.timeout(2000),
+      });
+    } catch (cancelErr) {
+      console.warn('Worker unreachable on stop signal (proceeding with status update):', cancelErr);
+    }
+
+    // Mark as FAILED so user can retry
+    const errorMsg = 'Analysis stopped by user. Click Try Again to restart when ready.';
+    await db.update(datasets).set({
+      status: 'FAILED',
+      errorMessage: errorMsg,
+      updatedAt: new Date(),
+    }).where(eq(datasets.id, datasetId));
+
+    res.json({ message: 'Analysis stopped successfully', status: 'FAILED' });
+  } catch (err: any) {
+    console.error('Error stopping dataset analysis:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -400,18 +538,32 @@ router.post('/:id/retry', authenticate, async (req: any, res: any) => {
       updatedAt: new Date(),
     }).where(eq(datasets.id, datasetId));
 
-    // 5. Trigger Python worker
-    fetch('http://localhost:8001/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dataset_id: datasetId })
-    }).catch(async (err) => {
+    // 5. Trigger Python worker synchronously with timeout
+    try {
+      const workerRes = await fetch(`${WORKER_URL}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataset_id: datasetId }),
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (!workerRes.ok) {
+        const errText = await workerRes.text();
+        throw new Error(`Worker returned HTTP ${workerRes.status}: ${errText}`);
+      }
+    } catch (err: any) {
       console.error('Failed to trigger Python worker on retry:', err);
+      const errorMsg = 'Cannot restart analysis: Worker service is offline or paused. Please start the worker and retry.';
       await db.update(datasets).set({
         status: 'FAILED',
-        errorMessage: 'Failed to contact analysis worker: ' + (err.message || 'Worker unreachable')
+        errorMessage: errorMsg,
+        updatedAt: new Date(),
       }).where(eq(datasets.id, datasetId));
-    });
+
+      return res.status(503).json({
+        error: 'Python worker service is offline or paused. Please start the worker server before retrying.'
+      });
+    }
 
     res.json({ message: 'Dataset analysis restarted successfully' });
 
@@ -439,10 +591,11 @@ router.delete('/:id', authenticate, async (req: any, res: any) => {
     if (dataset.status === 'ANALYSIS_IN_PROGRESS') {
       try {
         console.log(`Aborting ongoing analysis for dataset ${datasetId}...`);
-        await fetch('http://localhost:8001/cancel', {
+        await fetch(`${WORKER_URL}/cancel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ dataset_id: datasetId }),
+          signal: AbortSignal.timeout(2000),
         });
       } catch (cancelErr) {
         console.warn('Could not reach worker to cancel analysis (proceeding with deletion):', cancelErr);

@@ -5,24 +5,53 @@ from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO)
 
-# Active cancellation registry for running dataset tasks
+# Active cancellation registry and live processing tracking for dataset tasks
 cancelled_datasets: set[int] = set()
+active_datasets: set[int] = set()
 
 def cancel_dataset(dataset_id: int):
-    """Signals an ongoing dataset processing task to stop immediately."""
+    """Signals an ongoing dataset processing task to stop immediately and mark as FAILED."""
     logging.info(f"Cancellation requested for dataset_id: {dataset_id}")
     cancelled_datasets.add(dataset_id)
+    try:
+        with SessionLocal() as db:
+            ds = db.execute(text("SELECT id, status FROM datasets WHERE id = :id"), {"id": dataset_id}).fetchone()
+            if ds and ds[1] == 'ANALYSIS_IN_PROGRESS':
+                db.execute(
+                    text("UPDATE datasets SET status = 'FAILED', error_message = 'Analysis stopped by user. Click Try Again to retry.', updated_at = NOW() WHERE id = :id"),
+                    {"id": dataset_id}
+                )
+                db.commit()
+                logging.info(f"Updated dataset {dataset_id} to FAILED due to cancellation request.")
+    except Exception as e:
+        logging.warning(f"Could not update status to FAILED on cancel for dataset {dataset_id}: {e}")
+
+def _handle_abort_cancellation(dataset_id: int):
+    """Updates database status to FAILED when task is aborted due to cancellation."""
+    cancelled_datasets.discard(dataset_id)
+    try:
+        with SessionLocal() as db:
+            ds = db.execute(text("SELECT id, status FROM datasets WHERE id = :id"), {"id": dataset_id}).fetchone()
+            if ds and ds[1] == 'ANALYSIS_IN_PROGRESS':
+                db.execute(
+                    text("UPDATE datasets SET status = 'FAILED', error_message = 'Analysis stopped. Click Try Again to retry.', updated_at = NOW() WHERE id = :id"),
+                    {"id": dataset_id}
+                )
+                db.commit()
+    except Exception as e:
+        logging.warning(f"Could not set status to FAILED on abort for dataset {dataset_id}: {e}")
 
 def process_dataset(dataset_id: int):
     logging.info(f"Starting processing for dataset_id: {dataset_id}")
     cancelled_datasets.discard(dataset_id)
+    active_datasets.add(dataset_id)
     
     try:
         # Phase 1: Set status to ANALYSIS_IN_PROGRESS, clear error_message, fetch reviews
         with SessionLocal() as db:
             if dataset_id in cancelled_datasets:
                 logging.info(f"Dataset {dataset_id} cancelled before start. Aborting.")
-                cancelled_datasets.discard(dataset_id)
+                _handle_abort_cancellation(dataset_id)
                 return
 
             db.execute(
@@ -64,7 +93,7 @@ def process_dataset(dataset_id: int):
             # Check if user requested cancellation during processing
             if dataset_id in cancelled_datasets:
                 logging.info(f"Analysis cancelled for dataset {dataset_id} at review {idx + 1}. Aborting immediately.")
-                cancelled_datasets.discard(dataset_id)
+                _handle_abort_cancellation(dataset_id)
                 return
 
             review_id = review[0]
@@ -90,9 +119,13 @@ def process_dataset(dataset_id: int):
                             {"dataset_id": dataset_id}
                         ).fetchone()
                         
-                        if not ds_check or dataset_id in cancelled_datasets:
-                            logging.info(f"Dataset {dataset_id} no longer exists or was cancelled. Aborting worker.")
-                            cancelled_datasets.discard(dataset_id)
+                        if not ds_check:
+                            logging.info(f"Dataset {dataset_id} no longer exists. Aborting worker.")
+                            return
+
+                        if dataset_id in cancelled_datasets:
+                            logging.info(f"Dataset {dataset_id} was cancelled. Aborting worker.")
+                            _handle_abort_cancellation(dataset_id)
                             return
 
                         db.execute(
@@ -107,7 +140,7 @@ def process_dataset(dataset_id: int):
         # Phase 3: Batch insert into DB
         if dataset_id in cancelled_datasets:
             logging.info(f"Dataset {dataset_id} cancelled before DB insert. Aborting.")
-            cancelled_datasets.discard(dataset_id)
+            _handle_abort_cancellation(dataset_id)
             return
 
         if results_to_insert:
@@ -118,7 +151,7 @@ def process_dataset(dataset_id: int):
                 for i in range(0, len(results_to_insert), chunk_size):
                     if dataset_id in cancelled_datasets:
                         logging.info(f"Dataset {dataset_id} cancelled during DB insert. Aborting.")
-                        cancelled_datasets.discard(dataset_id)
+                        _handle_abort_cancellation(dataset_id)
                         return
 
                     chunk = results_to_insert[i:i+chunk_size]
@@ -143,7 +176,7 @@ def process_dataset(dataset_id: int):
         # Phase 4: Update final dataset status to COMPLETED (if not cancelled or deleted)
         if dataset_id in cancelled_datasets:
             logging.info(f"Dataset {dataset_id} cancelled before completion. Skipping status update.")
-            cancelled_datasets.discard(dataset_id)
+            _handle_abort_cancellation(dataset_id)
             return
 
         with SessionLocal() as db:
@@ -166,7 +199,7 @@ def process_dataset(dataset_id: int):
     except Exception as e:
         if dataset_id in cancelled_datasets:
             logging.info(f"Exception ignored for cancelled dataset {dataset_id}: {e}")
-            cancelled_datasets.discard(dataset_id)
+            _handle_abort_cancellation(dataset_id)
             return
 
         logging.exception(f"Error processing dataset_id {dataset_id}: {e}")
@@ -189,3 +222,6 @@ def process_dataset(dataset_id: int):
                 logging.info(f"Recorded FAILED status for dataset_id {dataset_id}: {error_msg}")
         except Exception as db_err:
             logging.exception(f"Could not update FAILED status in DB for dataset {dataset_id}: {db_err}")
+    finally:
+        active_datasets.discard(dataset_id)
+        cancelled_datasets.discard(dataset_id)
