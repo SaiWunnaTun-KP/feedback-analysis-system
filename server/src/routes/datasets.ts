@@ -385,6 +385,60 @@ router.post('/upload', authenticate, upload.single('file'), async (req: any, res
   }
 });
 
+// PATCH /api/datasets/:id or /api/datasets/:id/rename
+// Rename an uploaded dataset
+const handleRenameDataset = async (req: any, res: any) => {
+  try {
+    const userId = req.user.userId;
+    const datasetId = parseInt(req.params.id, 10);
+    const { filename } = req.body;
+
+    if (isNaN(datasetId)) {
+      return res.status(400).json({ error: 'Invalid dataset ID' });
+    }
+
+    if (!filename || typeof filename !== 'string' || filename.trim().length === 0) {
+      return res.status(400).json({ error: 'Dataset name cannot be empty' });
+    }
+
+    const trimmedName = filename.trim();
+    if (trimmedName.length > 255) {
+      return res.status(400).json({ error: 'Dataset name cannot exceed 255 characters' });
+    }
+
+    // Verify ownership
+    const [dataset] = await db
+      .select()
+      .from(datasets)
+      .where(and(eq(datasets.id, datasetId), eq(datasets.userId, userId)));
+
+    if (!dataset) {
+      return res.status(404).json({ error: 'Dataset not found or unauthorized' });
+    }
+
+    // Update filename in database
+    const [updatedDataset] = await db
+      .update(datasets)
+      .set({
+        filename: trimmedName,
+        updatedAt: new Date(),
+      })
+      .where(eq(datasets.id, datasetId))
+      .returning();
+
+    res.json({
+      message: 'Dataset renamed successfully',
+      dataset: updatedDataset,
+    });
+  } catch (error: any) {
+    console.error('Error renaming dataset:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+};
+
+router.patch('/:id/rename', authenticate, handleRenameDataset);
+router.patch('/:id', authenticate, handleRenameDataset);
+
 // POST /api/datasets/:id/stop
 // Explicitly stop/abort an in-progress analysis and mark it as FAILED (allowing retry)
 router.post('/:id/stop', authenticate, async (req: any, res: any) => {

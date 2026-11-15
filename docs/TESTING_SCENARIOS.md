@@ -128,6 +128,18 @@ These unit test cases validate individual UI screens, input fields, client/serve
   1. Modal closes; dataset remains intact.
   2. Sends `DELETE /api/datasets/:id`, removes dataset from S3/R2 storage, cascades deletion across `reviews` and `feedback_results`, removes row from table, and shows success toast.
 
+#### Test Case U09b: Dataset Renaming Dialog & Validation Form
+- **Component / Screen:** `Datasets.tsx` - Rename Dialog (`PATCH /api/datasets/:id`)
+- **What it tests:** Renaming an uploaded dataset's display title and validating input constraints.
+- **Inputs:**
+  1. *Valid:* User clicks rename pencil icon, enters `"Q4_Smartphones_Final.csv"`, and clicks "Save Changes".
+  2. *Empty Input:* User clears input and clicks submit.
+  3. *Unchanged Input:* User clicks "Save Changes" without modifying the existing name.
+- **Expected Results:**
+  1. Sends `PATCH /api/datasets/:id`, updates `filename` in DB, invalidates dataset and report caches, shows toast `"Dataset renamed successfully"`, and updates name across UI.
+  2. Button is disabled or form displays error: `"Dataset name cannot be empty"`.
+  3. Dialog closes without unnecessary API dispatch.
+
 ---
 
 ### Module 4: Analysis Reports & Visualizations

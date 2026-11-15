@@ -24,7 +24,8 @@ import {
   ChevronRight,
   ChevronsRight,
   RotateCw,
-  Square
+  Square,
+  Pencil
 } from 'lucide-react';
 import { Link } from 'react-router';
 import {
@@ -38,6 +39,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function Datasets() {
   const queryClient = useQueryClient();
@@ -121,6 +132,41 @@ export default function Datasets() {
     },
     onError: (error: any) => toast.error(error.message || 'Failed to delete dataset')
   });
+
+  // Rename dataset state and mutation
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [datasetToRename, setDatasetToRename] = useState<any | null>(null);
+  const [newFilename, setNewFilename] = useState('');
+
+  const openRenameDialog = (dataset: any) => {
+    setDatasetToRename(dataset);
+    setNewFilename(dataset.filename);
+    setIsRenameOpen(true);
+  };
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, filename }: { id: number; filename: string }) =>
+      datasetsApi.rename(id, filename),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      queryClient.invalidateQueries({ queryKey: ['activeDatasetProgress'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      toast.success('Dataset renamed successfully.');
+      setIsRenameOpen(false);
+      setDatasetToRename(null);
+    },
+    onError: (error: any) => toast.error(error.message || 'Failed to rename dataset'),
+  });
+
+  const handleRenameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!datasetToRename || !newFilename.trim()) return;
+    if (newFilename.trim() === datasetToRename.filename) {
+      setIsRenameOpen(false);
+      return;
+    }
+    renameMutation.mutate({ id: datasetToRename.id, filename: newFilename.trim() });
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -452,7 +498,21 @@ export default function Datasets() {
                     <TableCell className="text-center font-mono text-xs font-medium text-slate-500">
                       {(pagination.offset || 0) + index + 1}
                     </TableCell>
-                    <TableCell className="font-medium text-slate-900">{d.filename}</TableCell>
+                    <TableCell className="font-medium text-slate-900">
+                      <div className="flex items-center gap-1.5 group">
+                        <span className="truncate max-w-[180px] sm:max-w-[260px] md:max-w-[320px]" title={d.filename}>
+                          {d.filename}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openRenameDialog(d)}
+                          className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-60 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
+                          title="Rename dataset"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-slate-500">{Number(d.fileSizeMb).toFixed(2)} MB</TableCell>
                     <TableCell className="text-slate-500">{new Date(d.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
@@ -537,6 +597,16 @@ export default function Datasets() {
                           <span>{retryMutation.isPending && retryMutation.variables === d.id ? 'Retrying...' : 'Try Again'}</span>
                         </Button>
                       )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                        onClick={() => openRenameDialog(d)}
+                        title="Rename dataset"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Rename</span>
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button 
@@ -670,6 +740,53 @@ export default function Datasets() {
           </div>
         )}
       </Card>
+
+      {/* Rename Dataset Dialog */}
+      <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>Rename Dataset</span>
+            </DialogTitle>
+            <DialogDescription>
+              Enter a new display name for this dataset. This updates the name across your reports and analytics.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRenameSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="rename-input" className="text-sm font-medium">
+                Dataset Name
+              </Label>
+              <Input
+                id="rename-input"
+                value={newFilename}
+                onChange={(e) => setNewFilename(e.target.value)}
+                placeholder="e.g. Q4_Headphones_Review.csv"
+                autoFocus
+                maxLength={255}
+                disabled={renameMutation.isPending}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsRenameOpen(false)}
+                disabled={renameMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={renameMutation.isPending || !newFilename.trim() || newFilename.trim() === datasetToRename?.filename}
+              >
+                {renameMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

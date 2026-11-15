@@ -137,6 +137,11 @@ export const datasetsApi = {
   delete: (id: number) => apiFetch(`/datasets/${id}`, { method: 'DELETE' }),
   retry: (id: number) => apiFetch(`/datasets/${id}/retry`, { method: 'POST' }),
   stop: (id: number) => apiFetch(`/datasets/${id}/stop`, { method: 'POST' }),
+  rename: (id: number, filename: string) =>
+    apiFetch(`/datasets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ filename }),
+    }),
   getActiveProgress: (): Promise<{ activeDataset: DatasetItem | null }> => apiFetch('/datasets/active'),
 };
 
