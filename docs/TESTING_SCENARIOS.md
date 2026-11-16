@@ -44,6 +44,18 @@ These unit test cases validate individual UI screens, input fields, client/serve
   4. Form validation displays: `"Please fill in all fields"`.
   5. Displays alert: `"Your account has been suspended. Please contact support"` (Code: `ACCOUNT_SUSPENDED`).
 
+#### Test Case U02B: Retail Manager Forgot Password Modal & Verification
+- **Component / Screen:** `Login.tsx` (`/login` - Forgot Password Dialog)
+- **What it tests:** 3-step password recovery flow (Email $\rightarrow$ 6-digit code $\rightarrow$ New Password).
+- **Inputs:**
+  1. *Step 1 (Email):* Valid registered email vs. invalid email vs. non-existent email.
+  2. *Step 2 (Verification Code):* Valid 6-digit code, expired code, incorrect code (< 6 digits or wrong number).
+  3. *Step 3 (New Password):* Password < 8 characters, mismatched confirmation, valid new password matching confirmation.
+- **Expected Results:**
+  1. Sends 6-digit code to email; advances to Step 2 with 60s resend timer. For non-existent email, returns generic safe message without leaking user existence.
+  2. Rejects invalid/expired code with error alert; accepts valid code and unlocks Step 3 with signed reset token.
+  3. Enforces 8-character minimum and equality check; on submit, securely updates `passwordHash` in database, deletes verification token, closes dialog, and returns user to login form with email pre-filled.
+
 #### Test Case U03: Super Admin Login Form & Rate Limiting
 - **Component / Screen:** `AdminLoginPage.tsx` (`/admin/login`)
 - **What it tests:** Admin authentication gate and brute-force lockout prevention.

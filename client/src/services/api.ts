@@ -57,6 +57,12 @@ export const authApi = {
   getAdminLockoutStatus: (email?: string) =>
     apiFetch(`/admin/auth/lockout-status${email ? `?email=${encodeURIComponent(email)}` : ''}`),
   register: (data: any) => apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+  forgotPasswordRequestCode: (email: string) =>
+    apiFetch('/auth/forgot-password/request-code', { method: 'POST', body: JSON.stringify({ email }) }),
+  forgotPasswordVerifyCode: (email: string, code: string) =>
+    apiFetch('/auth/forgot-password/verify-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
+  forgotPasswordReset: (data: { resetToken: string; newPassword: string; confirmPassword: string }) =>
+    apiFetch('/auth/forgot-password/reset', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const plansApi = {

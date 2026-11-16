@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../services/api';
@@ -11,13 +11,25 @@ import {
   BarChart2, 
   MessageSquareHeart, 
   Eye, 
-  EyeOff 
+  EyeOff,
+  KeyRound,
+  Mail,
+  CheckCircle2,
+  Lock,
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -41,6 +53,121 @@ export default function Login() {
       toast.error(msg);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Forgot Password modal states
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotCode, setForgotCode] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotShowPassword, setForgotShowPassword] = useState(false);
+  const [forgotShowConfirmPassword, setForgotShowConfirmPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [countdown, setCountdown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (isForgotOpen && forgotStep === 2 && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isForgotOpen, forgotStep, countdown]);
+
+  const openForgotPassword = () => {
+    setForgotEmail(email.trim());
+    setForgotCode('');
+    setForgotNewPassword('');
+    setForgotConfirmPassword('');
+    setForgotStep(1);
+    setCountdown(0);
+    setIsForgotOpen(true);
+  };
+
+  const handleRequestCode = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!forgotEmail || !forgotEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await authApi.forgotPasswordRequestCode(forgotEmail.trim());
+      toast.success('If an account exists, a 6-digit verification code has been sent');
+      setForgotStep(2);
+      setCountdown(60);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send verification code');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (countdown > 0 || resendLoading) return;
+    setResendLoading(true);
+    try {
+      await authApi.forgotPasswordRequestCode(forgotEmail.trim());
+      toast.success('A new verification code has been sent');
+      setCountdown(60);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to resend code');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = forgotCode.trim();
+    if (cleanCode.length !== 6) {
+      toast.error('Please enter the 6-digit verification code');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await authApi.forgotPasswordVerifyCode(forgotEmail.trim(), cleanCode);
+      setResetToken(res.resetToken);
+      toast.success('Code confirmed! Set your new password.');
+      setForgotStep(3);
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid or expired code');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotNewPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await authApi.forgotPasswordReset({
+        resetToken,
+        newPassword: forgotNewPassword,
+        confirmPassword: forgotConfirmPassword,
+      });
+      toast.success('Password has been reset successfully! You can now sign in.');
+      setEmail(forgotEmail);
+      setPassword('');
+      setIsForgotOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset password');
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -89,6 +216,13 @@ export default function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={openForgotPassword}
+                  className="text-xs font-medium text-primary hover:underline cursor-pointer"
+                >
+                  Forgot password?
+                </button>
               </div>
               <div className="relative">
                 <Input
@@ -249,6 +383,280 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Multi-Step Dialog */}
+      <Dialog open={isForgotOpen} onOpenChange={setIsForgotOpen}>
+        <DialogContent className="sm:max-w-[440px] p-6">
+          <DialogHeader className="space-y-2">
+            {/* Step progress pills */}
+            <div className="flex items-center justify-center gap-2 pb-2">
+              <span
+                className={`flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold ${
+                  forgotStep === 1
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-primary/20 text-primary'
+                }`}
+              >
+                1
+              </span>
+              <span className={`h-0.5 w-8 rounded-full ${forgotStep > 1 ? 'bg-primary' : 'bg-muted'}`} />
+              <span
+                className={`flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold ${
+                  forgotStep === 2
+                    ? 'bg-primary text-primary-foreground'
+                    : forgotStep > 2
+                    ? 'bg-primary/20 text-primary'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                2
+              </span>
+              <span className={`h-0.5 w-8 rounded-full ${forgotStep > 2 ? 'bg-primary' : 'bg-muted'}`} />
+              <span
+                className={`flex items-center justify-center h-6 w-6 rounded-full text-xs font-semibold ${
+                  forgotStep === 3
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                3
+              </span>
+            </div>
+
+            {forgotStep === 1 && (
+              <>
+                <div className="mx-auto h-12 w-12 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-1">
+                  <Mail className="h-6 w-6" />
+                </div>
+                <DialogTitle className="text-center text-xl font-bold">Forgot Password</DialogTitle>
+                <DialogDescription className="text-center text-sm text-muted-foreground">
+                  Enter your registered retail manager email. We'll send a 6-digit verification code.
+                </DialogDescription>
+              </>
+            )}
+
+            {forgotStep === 2 && (
+              <>
+                <div className="mx-auto h-12 w-12 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-1">
+                  <KeyRound className="h-6 w-6" />
+                </div>
+                <DialogTitle className="text-center text-xl font-bold">Enter Verification Code</DialogTitle>
+                <DialogDescription className="text-center text-sm text-muted-foreground">
+                  We sent a 6-digit code to <strong className="text-foreground">{forgotEmail}</strong>. Enter it below to proceed.
+                </DialogDescription>
+              </>
+            )}
+
+            {forgotStep === 3 && (
+              <>
+                <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-1">
+                  <Lock className="h-6 w-6" />
+                </div>
+                <DialogTitle className="text-center text-xl font-bold">Reset Password</DialogTitle>
+                <DialogDescription className="text-center text-sm text-muted-foreground">
+                  Create a new secure password with at least 8 characters.
+                </DialogDescription>
+              </>
+            )}
+          </DialogHeader>
+
+          {/* Step 1: Email Form */}
+          {forgotStep === 1 && (
+            <form onSubmit={handleRequestCode} className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Account Email</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  required
+                  placeholder="manager@company.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  autoFocus
+                  className="h-10"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsForgotOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={forgotLoading} className="flex-1">
+                  {forgotLoading ? 'Sending...' : 'Send Code'}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* Step 2: 6-Digit Code Form */}
+          {forgotStep === 2 && (
+            <form onSubmit={handleVerifyCode} className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-code">6-Digit Verification Code</Label>
+                <Input
+                  id="forgot-code"
+                  type="text"
+                  maxLength={6}
+                  required
+                  placeholder="123456"
+                  value={forgotCode}
+                  onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, ''))}
+                  autoFocus
+                  className="h-12 text-center text-2xl tracking-[0.4em] font-mono font-bold"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                  <span>Code expires in 15 mins</span>
+                  {countdown > 0 ? (
+                    <span>Resend in {countdown}s</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={resendLoading}
+                      onClick={handleResendCode}
+                      className="text-primary hover:underline font-medium cursor-pointer"
+                    >
+                      {resendLoading ? 'Sending...' : 'Resend code'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setForgotStep(1)}
+                  className="flex-1"
+                >
+                  Change Email
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={forgotLoading || forgotCode.trim().length !== 6}
+                  className="flex-1"
+                >
+                  {forgotLoading ? 'Verifying...' : 'Verify Code'}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* Step 3: New Password Form */}
+          {forgotStep === 3 && (
+            <form onSubmit={handleResetPassword} className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-new-password">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="forgot-new-password"
+                    type={forgotShowPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    placeholder="At least 8 characters"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    autoFocus
+                    className="h-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForgotShowPassword(!forgotShowPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={forgotShowPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {forgotShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="forgot-confirm-password">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="forgot-confirm-password"
+                    type={forgotShowConfirmPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    placeholder="Re-enter new password"
+                    value={forgotConfirmPassword}
+                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                    className="h-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForgotShowConfirmPassword(!forgotShowConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={forgotShowConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {forgotShowConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Password criteria checklist */}
+              <div className="text-xs space-y-1 bg-muted/50 p-2.5 rounded-lg border border-border/50">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2
+                    size={14}
+                    className={
+                      forgotNewPassword.length >= 8
+                        ? 'text-emerald-500'
+                        : 'text-muted-foreground/50'
+                    }
+                  />
+                  <span className={forgotNewPassword.length >= 8 ? 'text-foreground' : 'text-muted-foreground'}>
+                    Minimum 8 characters
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2
+                    size={14}
+                    className={
+                      forgotNewPassword && forgotNewPassword === forgotConfirmPassword
+                        ? 'text-emerald-500'
+                        : 'text-muted-foreground/50'
+                    }
+                  />
+                  <span
+                    className={
+                      forgotNewPassword && forgotNewPassword === forgotConfirmPassword
+                        ? 'text-foreground'
+                        : 'text-muted-foreground'
+                    }
+                  >
+                    Passwords match
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsForgotOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    forgotLoading ||
+                    forgotNewPassword.length < 8 ||
+                    forgotNewPassword !== forgotConfirmPassword
+                  }
+                  className="flex-1"
+                >
+                  {forgotLoading ? 'Resetting...' : 'Reset Password'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
