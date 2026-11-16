@@ -301,13 +301,13 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
 
       {/* User Full Detail Dialog */}
       <Dialog open={!!selectedUserId} onOpenChange={(open) => !open && setSelectedUserId(null)}>
-        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] overflow-y-auto">
           {detailLoading || !userDetail ? (
             <div className="py-12 text-center text-slate-500">Loading user details...</div>
           ) : (
             <div className="space-y-6">
-              <DialogHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1 pb-3 border-b">
+              <DialogHeader className="pr-8 sm:pr-10">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1 pb-4 border-b">
                   <div>
                     <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-slate-900">
                       {userDetail.username}
@@ -317,8 +317,45 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                       User #{userDetail.id} &bull; Joined {new Date(userDetail.createdAt).toLocaleDateString()}
                     </DialogDescription>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
                     {getStatusBadge(userDetail.status)}
+                    <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+
+                    {userDetail.status === 'active' && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-200 text-amber-700 hover:bg-amber-50 cursor-pointer shadow-2xs font-medium"
+                        onClick={() => handleOpenSuspend(userDetail)}
+                        disabled={statusMutation.isPending}
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1 text-amber-600" />
+                        Suspend User
+                      </Button>
+                    )}
+                    {userDetail.status === 'suspended' && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 cursor-pointer shadow-2xs font-medium"
+                        onClick={() => statusMutation.mutate({ id: userDetail.id, status: 'active' })}
+                        disabled={statusMutation.isPending}
+                      >
+                        Reactivate User
+                      </Button>
+                    )}
+                    {userDetail.status !== 'deleted' && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        className="border-rose-200 text-rose-700 hover:bg-rose-50 cursor-pointer shadow-2xs font-medium"
+                        onClick={() => setDeleteConfirmUser(userDetail)}
+                        disabled={statusMutation.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1 text-rose-600" />
+                        Soft Delete User
+                      </Button>
+                    )}
                   </div>
                 </div>
               </DialogHeader>
@@ -507,46 +544,6 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                   </table>
                 </div>
               </div>
-
-              {/* 4. Account Actions (Suspend / Reactivate / Soft Delete) */}
-              <div className="pt-4 border-t flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-slate-500">
-                  Manage account status. Changes take effect immediately.
-                </div>
-                <div className="flex items-center gap-2">
-                  {userDetail.status === 'active' && (
-                    <Button 
-                      variant="outline"
-                      className="border-amber-200 text-amber-700 hover:bg-amber-50 cursor-pointer"
-                      onClick={() => handleOpenSuspend(userDetail)}
-                      disabled={statusMutation.isPending}
-                    >
-                      Suspend User
-                    </Button>
-                  )}
-                  {userDetail.status === 'suspended' && (
-                    <Button 
-                      variant="outline"
-                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-                      onClick={() => statusMutation.mutate({ id: userDetail.id, status: 'active' })}
-                      disabled={statusMutation.isPending}
-                    >
-                      Reactivate User
-                    </Button>
-                  )}
-                  {userDetail.status !== 'deleted' && (
-                    <Button 
-                      variant="outline"
-                      className="border-rose-200 text-rose-700 hover:bg-rose-50 cursor-pointer"
-                      onClick={() => setDeleteConfirmUser(userDetail)}
-                      disabled={statusMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1.5" />
-                      Soft Delete User
-                    </Button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </DialogContent>
@@ -554,7 +551,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
 
       {/* Suspend Confirmation Dialog with Reason Selection & Email Notice */}
       <Dialog open={!!suspendConfirmUser} onOpenChange={(open) => !open && setSuspendConfirmUser(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 text-amber-600 mb-1">
               <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
@@ -638,7 +635,7 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
 
       {/* Soft Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirmUser} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 text-rose-600 mb-1">
               <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
