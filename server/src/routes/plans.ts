@@ -152,7 +152,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
         const allActiveUsers = await db
           .select({ email: users.email, username: users.username })
           .from(users)
-          .where(eq(users.status, 'active'));
+          .where(and(eq(users.status, 'active'), eq(users.role, 'RETAIL_MANAGER')));
 
         for (const u of allActiveUsers) {
           await sendPlanAnnouncementEmail(u.email, u.username, title, message);
@@ -242,7 +242,8 @@ const handleUpdatePlan = async (req: any, res: any) => {
               and(
                 eq(activeSubscriptions.planId, planId),
                 eq(activeSubscriptions.status, 'ACTIVE'),
-                eq(users.status, 'active')
+                eq(users.status, 'active'),
+                eq(users.role, 'RETAIL_MANAGER')
               )
             );
 
@@ -322,7 +323,8 @@ router.patch('/:id/deactivate', authenticate, requireAdmin, async (req, res) => 
             and(
               eq(activeSubscriptions.planId, planId),
               eq(activeSubscriptions.status, 'ACTIVE'),
-              eq(users.status, 'active')
+              eq(users.status, 'active'),
+              eq(users.role, 'RETAIL_MANAGER')
             )
           );
 
@@ -394,7 +396,8 @@ router.patch('/:id/activate', authenticate, requireAdmin, async (req, res) => {
             and(
               eq(activeSubscriptions.planId, planId),
               eq(activeSubscriptions.status, 'ACTIVE'),
-              eq(users.status, 'active')
+              eq(users.status, 'active'),
+              eq(users.role, 'RETAIL_MANAGER')
             )
           );
 
@@ -474,7 +477,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
         const allActiveUsers = await db
           .select({ email: users.email, username: users.username })
           .from(users)
-          .where(eq(users.status, 'active'));
+          .where(and(eq(users.status, 'active'), eq(users.role, 'RETAIL_MANAGER')));
 
         for (const u of allActiveUsers) {
           await sendPlanAnnouncementEmail(u.email, u.username, title, message);

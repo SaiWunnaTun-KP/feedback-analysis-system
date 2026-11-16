@@ -10,6 +10,12 @@ const router = Router();
 // Returns the oldest unseen announcement applicable to the current user
 router.get('/unseen', authenticate, async (req: any, res) => {
   try {
+    // Only RETAIL_MANAGER users should receive customer-facing plan announcements.
+    // Administrators manage plans and should never receive these announcements.
+    if (req.user?.role === 'ADMIN') {
+      return res.json({ announcement: null });
+    }
+
     const userId = req.user.userId;
 
     // Fetch announcements that:

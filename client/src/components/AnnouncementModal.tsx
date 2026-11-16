@@ -169,23 +169,23 @@ export function AnnouncementModal() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  // Fetch oldest unseen announcement for current user
+  // Fetch oldest unseen announcement for current user (Retail Managers only)
   const { data } = useQuery({
     queryKey: ['unseenAnnouncement'],
     queryFn: announcementsApi.getUnseen,
-    enabled: !!isAuthenticated,
+    enabled: !!isAuthenticated && user?.role === 'RETAIL_MANAGER',
     staleTime: 1000 * 60, // 1 minute
   });
 
   const announcement: Announcement | null = data?.announcement || null;
 
   useEffect(() => {
-    if (announcement) {
+    if (announcement && user?.role === 'RETAIL_MANAGER') {
       setOpen(true);
     } else {
       setOpen(false);
     }
-  }, [announcement]);
+  }, [announcement, user?.role]);
 
   const markSeenMutation = useMutation({
     mutationFn: (id: number) => announcementsApi.markSeen(id),
@@ -195,7 +195,7 @@ export function AnnouncementModal() {
     },
   });
 
-  if (!isAuthenticated || !announcement) {
+  if (!isAuthenticated || user?.role !== 'RETAIL_MANAGER' || !announcement) {
     return null;
   }
 
