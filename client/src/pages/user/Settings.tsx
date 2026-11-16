@@ -20,7 +20,7 @@ import {
 import { useNavigate } from 'react-router';
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   
   // Profile Form State
@@ -63,6 +63,9 @@ export default function Settings() {
       setEmail(data.email || '');
       setCompanyName(data.companyName || '');
       setCompanyEmail(data.companyEmail || '');
+      if (data.username && user && data.username !== user.username) {
+        updateUser({ username: data.username });
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to load profile');
     } finally {
@@ -74,7 +77,8 @@ export default function Settings() {
     e.preventDefault();
     setIsSavingProfile(true);
     try {
-      await profileApi.update({ username: name, companyName });
+      const updated = await profileApi.update({ username: name, companyName });
+      updateUser({ username: updated.username || name });
       toast.success('Profile updated successfully!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to update profile');
