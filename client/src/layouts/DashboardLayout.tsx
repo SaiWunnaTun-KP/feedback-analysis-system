@@ -7,6 +7,7 @@ import { AnnouncementModal } from '../components/AnnouncementModal';
 import {
   LogOut,
   LineChart,
+  LayoutDashboard,
   Package,
   MessageSquareText,
   Users,
@@ -26,7 +27,8 @@ export function DashboardLayout() {
   };
 
   const navItems = [
-    { name: 'Manage Plans', path: '/admin', icon: Package },
+    { name: 'System Overview', path: '/admin', icon: LayoutDashboard },
+    { name: 'Manage Plans', path: '/admin/plans', icon: Package },
     { name: 'Manage User Feedbacks', path: '/admin/feedbacks', icon: MessageSquareText },
     { name: 'Manage Users', path: '/admin/users', icon: Users },
     { name: 'Manage FAQs', path: '/admin/faqs', icon: HelpCircle },

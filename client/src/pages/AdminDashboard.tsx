@@ -5,12 +5,13 @@ import AdminFeedbacks from '@/components/admin/AdminFeedbacks';
 import AdminUsers from '@/components/admin/AdminUsers';
 import AdminFaqs from '@/components/admin/AdminFaqs';
 import AdminPolicies from '@/components/admin/AdminPolicies';
+import AdminOverview from '@/components/admin/AdminOverview';
 
 interface AdminDashboardProps {
-  tab?: 'plans' | 'feedbacks' | 'users' | 'faqs' | 'policies';
+  tab?: 'overview' | 'plans' | 'feedbacks' | 'users' | 'faqs' | 'policies';
 }
 
-export default function AdminDashboard({ tab = 'plans' }: AdminDashboardProps) {
+export default function AdminDashboard({ tab = 'overview' }: AdminDashboardProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [targetFeedbackId, setTargetFeedbackId] = useState<number | null>(() => {
@@ -32,6 +33,7 @@ export default function AdminDashboard({ tab = 'plans' }: AdminDashboardProps) {
 
   return (
     <div className="bg-card text-card-foreground p-6 rounded-xl shadow-xs border border-border">
+      {tab === 'overview' && <AdminOverview />}
       {tab === 'plans' && <AdminPlans />}
       {tab === 'feedbacks' && (
         <AdminFeedbacks

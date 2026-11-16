@@ -331,3 +331,7 @@ export const policiesApi = {
   update: (type: 'terms' | 'privacy', data: { title?: string; content: string; version?: string }) =>
     apiFetch(`/admin/policies/${type}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
+
+export const adminOverviewApi = {
+  getOverview: () => apiFetch('/admin/overview'),
+};

@@ -2,12 +2,22 @@ graph TD
     Dashboard["Dashboard"]
 
     %% Main Navigation Modules (Horizontal Spread)
+    Dashboard --> MOverview["System Overview"]
     Dashboard --> MPlans["Manage Plans"]
     Dashboard --> MFeedbacks["Manage User Feedbacks"]
     Dashboard --> MUsers["Manage Users"]
     Dashboard --> MFaqs["Manage FAQs"]
     Dashboard --> MPolicies["Manage Terms & Policies"]
     Dashboard --> ALogout["Logout"]
+
+    %% 0. System Overview Column (Vertical Stacking)
+    MOverview --> MO_KPIs["View Summary Telemetry"]
+    MOverview --> MO_Revenue["Platform Revenue (Stripe)"]
+    MOverview --> MO_Trend["Monthly Revenue Chart"]
+    MOverview --> MO_Plans["Plan Distribution Donut"]
+    MOverview --> MO_Health["Microservices Health Matrix"]
+    MOverview --> MO_Invoices["Recent Stripe Invoices"]
+    MO_KPIs ~~~ MO_Revenue ~~~ MO_Trend ~~~ MO_Plans ~~~ MO_Health ~~~ MO_Invoices
 
     %% 1. Manage Plans Column (Vertical Stacking)
     MPlans --> MP_View["View Plans List"]
