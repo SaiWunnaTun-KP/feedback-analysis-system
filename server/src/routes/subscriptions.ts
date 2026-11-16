@@ -7,6 +7,9 @@ import { stripe, getOrCreateCustomer } from '../services/stripe.service.ts';
 
 const router = Router();
 
+// In-memory registry of subscriptions scheduled to cancel at period end
+export const pendingCancellations = new Set<string>();
+
 // Helper: migrate users whose inactive plan billing period has ended to Free (EXPIRED)
 export async function checkInactivePlanExpirations() {
   const now = new Date();
@@ -52,11 +55,31 @@ router.get('/me', authenticate, async (req: any, res: any) => {
       .where(and(eq(activeSubscriptions.userId, userId), eq(activeSubscriptions.status, 'ACTIVE')));
 
     if (subscription) {
+      let cancelAtPeriodEnd = false;
+      if (subscription.stripeSubscriptionId) {
+        if (pendingCancellations.has(subscription.stripeSubscriptionId)) {
+          cancelAtPeriodEnd = true;
+        } else if (!subscription.stripeSubscriptionId.startsWith('mock_')) {
+          try {
+            const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+            cancelAtPeriodEnd = Boolean(stripeSub.cancel_at_period_end);
+            if (cancelAtPeriodEnd) {
+              pendingCancellations.add(subscription.stripeSubscriptionId);
+            }
+          } catch (err) {
+            console.warn('Could not check Stripe cancel_at_period_end:', err);
+          }
+        }
+      }
+
       // Return their active subscription details
       const [plan] = await db.select().from(plans).where(eq(plans.id, subscription.planId));
       return res.json({
         hasUsedFreeTrial: user.hasUsedFreeTrial,
-        subscription,
+        subscription: {
+          ...subscription,
+          cancelAtPeriodEnd,
+        },
         plan
       });
     }
@@ -172,7 +195,15 @@ router.post('/cancel', authenticate, async (req: any, res: any) => {
       { cancel_at_period_end: true }
     );
 
-    res.json({ message: 'Subscription set to cancel at period end', subscription: canceledSub });
+    pendingCancellations.add(activeSub.stripeSubscriptionId);
+
+    res.json({
+      message: 'Subscription set to cancel at period end',
+      subscription: {
+        ...activeSub,
+        cancelAtPeriodEnd: true,
+      },
+    });
   } catch (error) {
     console.error('Error canceling subscription:', error);
     res.status(500).json({ error: 'Internal server error' });

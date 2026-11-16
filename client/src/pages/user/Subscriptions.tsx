@@ -6,12 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Crown, CheckCircle2, CreditCard, Receipt, ChevronDown, ChevronUp, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
+import { Crown, CheckCircle2, CreditCard, Receipt, ChevronDown, ChevronUp, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, AlertTriangle } from 'lucide-react';
 import { PaymentModal } from '../../components/PaymentModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 export default function Subscriptions() {
   const [clientSecret, setClientSecret] = React.useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = React.useState(false);
   const [showAllPlans, setShowAllPlans] = React.useState(false);
   const [invoicePage, setInvoicePage] = React.useState(1);
   const invoiceLimit = 10;
@@ -57,7 +66,18 @@ export default function Subscriptions() {
 
   const cancelMutation = useMutation({
     mutationFn: subscriptionsApi.cancel,
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      setIsCancelModalOpen(false);
+      queryClient.setQueryData(['mySubscription'], (oldData: any) => {
+        if (!oldData || !oldData.subscription) return oldData;
+        return {
+          ...oldData,
+          subscription: {
+            ...oldData.subscription,
+            cancelAtPeriodEnd: true,
+          }
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
       toast.success('Subscription canceled successfully.');
     },
@@ -66,6 +86,7 @@ export default function Subscriptions() {
 
   const { subscription, plan: currentPlan, hasUsedFreeTrial } = mySub || {};
   const isFreeTier = !subscription && !hasUsedFreeTrial;
+  const isCanceled = Boolean(subscription?.cancelAtPeriodEnd || subscription?.status === 'CANCELED');
 
   const sortedPlans = React.useMemo(() => {
     if (!currentPlan) return plans;
@@ -105,28 +126,41 @@ export default function Subscriptions() {
                 <CreditCard className="h-5 w-5 text-emerald-400" />
                 <h3 className="text-lg font-medium text-slate-300">Current Active Plan</h3>
               </div>
-              <div className="text-4xl font-bold text-white flex items-center gap-3">
+              <div className="text-4xl font-bold text-white flex flex-wrap items-center gap-3">
                 {currentPlan ? currentPlan.name : (isFreeTier ? 'Free Trial' : 'No Active Plan')}
-                {currentPlan && <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30">Active</Badge>}
+                {currentPlan && (
+                  <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30">
+                    Active
+                  </Badge>
+                )}
+                {isCanceled && (
+                  <Badge className="bg-rose-500/20 text-rose-300 hover:bg-rose-500/20 border border-rose-500/30">
+                    Canceled
+                  </Badge>
+                )}
               </div>
               {subscription && (
                 <p className="text-slate-400 mt-2">
-                  Renews automatically on <span className="text-slate-200 font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span>
+                  {isCanceled ? (
+                    <>
+                      Access ends on <span className="text-slate-200 font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span> (Will not renew)
+                    </>
+                  ) : (
+                    <>
+                      Renews automatically on <span className="text-slate-200 font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span>
+                    </>
+                  )}
                 </p>
               )}
             </div>
-            {subscription && (
+            {subscription && !isCanceled && (
               <Button 
                 variant="secondary" 
-                className="bg-white text-slate-900 hover:bg-slate-100"
-                onClick={() => {
-                  if (confirm('Are you sure you want to cancel your subscription?')) {
-                    cancelMutation.mutate();
-                  }
-                }}
-                disabled={cancelMutation.isPending || subscription.status === 'CANCELED'}
+                className="bg-white text-slate-900 hover:bg-slate-100 font-medium"
+                onClick={() => setIsCancelModalOpen(true)}
+                disabled={cancelMutation.isPending}
               >
-                {cancelMutation.isPending ? 'Canceling...' : 'Cancel Subscription'}
+                Cancel Subscription
               </Button>
             )}
           </div>
@@ -220,7 +254,7 @@ export default function Subscriptions() {
                     disabled={isCurrent || purchaseMutation.isPending}
                     onClick={() => purchaseMutation.mutate(p.id)}
                   >
-                    {isCurrent ? 'Active Plan' : 'Purchase / Upgrade'}
+                    {isCurrent ? (isCanceled ? 'Active (Cancels at period end)' : 'Active Plan') : 'Purchase / Upgrade'}
                   </Button>
                 </CardFooter>
               </Card>
@@ -381,6 +415,65 @@ export default function Subscriptions() {
         onClose={() => setIsModalOpen(false)} 
         onSuccess={handlePaymentSuccess} 
       />
+
+      {/* Cancel Subscription Confirmation Modal */}
+      <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-1">
+              <div className="h-10 w-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-lg font-bold">Cancel Subscription?</DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-muted-foreground pt-1 space-y-3">
+              <span>
+                Are you sure you want to cancel your{' '}
+                <strong className="text-foreground">{currentPlan?.name || 'current'}</strong> subscription?
+              </span>
+              <div className="p-3 bg-muted/60 border border-border rounded-lg text-xs leading-relaxed space-y-1.5 text-left">
+                <span className="font-semibold text-foreground block">⚠️ What you need to know:</span>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  {subscription?.endDate && (
+                    <li>
+                      Your plan benefits remain active until{' '}
+                      <strong className="text-foreground">
+                        {new Date(subscription.endDate).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </strong>.
+                    </li>
+                  )}
+                  <li>No further automatic payments will be charged to your card.</li>
+                  <li>When this period concludes, your storage limit reverts to standard free tier limits.</li>
+                </ul>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCancelModalOpen(false)}
+              disabled={cancelMutation.isPending}
+            >
+              Keep Subscription
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
+              className="gap-2"
+            >
+              {cancelMutation.isPending ? 'Canceling...' : 'Confirm Cancellation'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
