@@ -43,9 +43,10 @@ export default function Subscriptions() {
     queryFn: () => subscriptionsApi.getInvoices({ page: invoicePage, limit: invoiceLimit, offset: invoiceOffset }),
   });
 
-  const invoices: any[] = Array.isArray(invoicesData)
+  const rawInvoices: any[] = Array.isArray(invoicesData)
     ? invoicesData
     : (invoicesData?.invoices || []);
+  const invoices: any[] = rawInvoices.filter((inv: any) => inv.status === 'paid');
 
   const invoicePagination = invoicesData?.pagination || {
     total: invoices.length,
@@ -325,15 +326,15 @@ export default function Subscriptions() {
                     <TableCell className="font-medium text-slate-900">{inv.number}</TableCell>
                     <TableCell className="text-slate-500">{new Date(inv.created * 1000).toLocaleDateString()}</TableCell>
                     <TableCell className="text-slate-700">{inv.lines?.data[0]?.plan?.nickname || 'Subscription'}</TableCell>
-                    <TableCell className="text-slate-900">${(inv.amount_paid / 100).toFixed(2)}</TableCell>
+                    <TableCell className="text-slate-900">${((inv.amount_paid || inv.total || 0) / 100).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={inv.status === 'paid' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
                         {inv.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {inv.hosted_invoice_url ? (
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => window.open(inv.hosted_invoice_url, '_blank')}>
+                      {inv.invoice_pdf || inv.hosted_invoice_url ? (
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => window.open(inv.invoice_pdf || inv.hosted_invoice_url, '_blank')}>
                           PDF
                         </Button>
                       ) : (

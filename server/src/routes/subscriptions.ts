@@ -122,6 +122,20 @@ router.post('/create', authenticate, async (req: any, res: any) => {
       await db.update(users).set({ stripeCustomerId }).where(eq(users.id, user.id));
     }
 
+    // Cancel prior incomplete subscription if user re-initiates checkout to prevent orphan open invoices
+    const [existingSub] = await db
+      .select()
+      .from(activeSubscriptions)
+      .where(eq(activeSubscriptions.userId, userId));
+
+    if (existingSub && existingSub.status === 'INCOMPLETE' && existingSub.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.cancel(existingSub.stripeSubscriptionId);
+      } catch (err) {
+        // Safe to ignore if already canceled
+      }
+    }
+
     // Create a subscription with default_incomplete and restrict to card
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
@@ -136,11 +150,6 @@ router.post('/create', authenticate, async (req: any, res: any) => {
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + plan.durationDays);
-
-    const [existingSub] = await db
-      .select()
-      .from(activeSubscriptions)
-      .where(eq(activeSubscriptions.userId, userId));
 
     if (existingSub) {
       await db.update(activeSubscriptions).set({
@@ -297,12 +306,15 @@ router.get('/invoices', authenticate, async (req: any, res: any) => {
 
     const allInvoices = await stripe.invoices.list({
       customer: user.stripeCustomerId,
+      status: 'paid',
       limit: 100,
     });
 
-    const total = allInvoices.data.length;
+    // Ensure only paid invoices are shown in the customer billing history
+    const paidInvoices = allInvoices.data.filter((inv) => inv.status === 'paid');
+    const total = paidInvoices.length;
     const totalPages = Math.ceil(total / limit) || 1;
-    const paginatedInvoices = allInvoices.data.slice(offset, offset + limit);
+    const paginatedInvoices = paidInvoices.slice(offset, offset + limit);
 
     res.json({
       invoices: paginatedInvoices,
