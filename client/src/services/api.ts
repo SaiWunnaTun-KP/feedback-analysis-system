@@ -28,9 +28,14 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
       errorCode = errorData.code || '';
     } catch (e) {}
 
+    const isPublicAuthEndpoint =
+      endpoint.startsWith('/auth/') ||
+      endpoint.startsWith('/admin/auth/');
+
     if (
-      response.status === 401 ||
-      (response.status === 403 && (errorCode === 'ACCOUNT_SUSPENDED' || errorCode === 'ACCOUNT_DELETED'))
+      !isPublicAuthEndpoint &&
+      (response.status === 401 ||
+        (response.status === 403 && (errorCode === 'ACCOUNT_SUSPENDED' || errorCode === 'ACCOUNT_DELETED')))
     ) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

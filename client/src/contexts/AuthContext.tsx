@@ -59,9 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const handleUnauthorized = (event: any) => {
+      const hadToken = !!localStorage.getItem('token') || !!token;
       logout();
-      if (event.detail?.message) {
+      // Only display the session expiration notice if the user was actively logged in
+      if (hadToken && event.detail?.message) {
         toast.error(event.detail.message, {
+          id: 'auth-session-expired',
           duration: 6000,
         });
       }
@@ -71,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       window.removeEventListener('auth:unauthorized', handleUnauthorized as EventListener);
     };
-  }, []);
+  }, [token]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, updateUser, isAuthenticated: !!token }}>
