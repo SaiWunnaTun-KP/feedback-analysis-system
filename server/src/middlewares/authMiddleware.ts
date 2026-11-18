@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
     userId: number;
     role: string;
     status?: string;
+    createdAt?: Date;
   };
 }
 
@@ -28,7 +29,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number, role: string };
 
     const [userRecord] = await db
-      .select({ id: users.id, role: users.role, status: users.status })
+      .select({ id: users.id, role: users.role, status: users.status, createdAt: users.createdAt })
       .from(users)
       .where(eq(users.id, decoded.userId));
 
@@ -54,6 +55,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       userId: userRecord.id,
       role: userRecord.role,
       status: userRecord.status,
+      createdAt: userRecord.createdAt,
     };
     next();
   } catch (error) {
@@ -74,7 +76,7 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number, role: string };
 
     const [userRecord] = await db
-      .select({ id: users.id, role: users.role, status: users.status })
+      .select({ id: users.id, role: users.role, status: users.status, createdAt: users.createdAt })
       .from(users)
       .where(eq(users.id, decoded.userId));
 
@@ -83,6 +85,7 @@ export const optionalAuthenticate = async (req: AuthRequest, res: Response, next
         userId: userRecord.id,
         role: userRecord.role,
         status: userRecord.status,
+        createdAt: userRecord.createdAt,
       };
     }
   } catch (error) {

@@ -415,7 +415,7 @@ export default function Reports() {
           />
 
           {/* Deep Dive Drill-Down */}
-          <DeepDiveDrillDown
+          {/* <DeepDiveDrillDown
             datasetId={Number(selectedDatasetId)}
             products={overviewData.products || []}
             aspects={overviewData.aspects || []}
@@ -423,7 +423,7 @@ export default function Reports() {
             onProductSelect={setSelectedProduct}
             selectedAspect={filterAspect}
             onAspectSelect={setFilterAspect}
-          />
+          /> */}
         </>
       ) : (
         <div className="p-12 text-center text-slate-500 bg-card rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-3 shadow-xs">

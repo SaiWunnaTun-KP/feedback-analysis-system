@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../database/index.js';
-import { planAnnouncements, userAnnouncementViews, activeSubscriptions, plans } from '../database/schema.js';
-import { eq, and, sql, desc, asc } from 'drizzle-orm';
+import { planAnnouncements, userAnnouncementViews, activeSubscriptions, plans, users } from '../database/schema.js';
+import { eq, and, sql, desc, asc, gte } from 'drizzle-orm';
 import { authenticate } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -17,10 +17,26 @@ router.get('/unseen', authenticate, async (req: any, res) => {
     }
 
     const userId = req.user.userId;
+    let userCreatedAt = req.user.createdAt;
+
+    // Safety fallback: fetch user's account creation date if not populated on req.user
+    if (!userCreatedAt) {
+      const [userRecord] = await db
+        .select({ createdAt: users.createdAt })
+        .from(users)
+        .where(eq(users.id, userId));
+      userCreatedAt = userRecord?.createdAt;
+    }
+
+    if (!userCreatedAt) {
+      return res.json({ announcement: null });
+    }
 
     // Fetch announcements that:
     // 1. Have targetUserIds IS NULL (all users) OR userId is in targetUserIds
-    // 2. Have NOT been marked seen by this user in user_announcement_views
+    // 2. Were created on or after the user's account creation date (createdAt >= userCreatedAt)
+    //    -> Ensures newly created user accounts do NOT see announcements that were published earlier than their account creation
+    // 3. Have NOT been marked seen by this user in user_announcement_views
     const unseenList = await db
       .select({
         announcementId: planAnnouncements.announcementId,
@@ -35,6 +51,7 @@ router.get('/unseen', authenticate, async (req: any, res) => {
       .where(
         and(
           sql`(${planAnnouncements.targetUserIds} IS NULL OR ${userId} = ANY(${planAnnouncements.targetUserIds}))`,
+          gte(planAnnouncements.createdAt, userCreatedAt),
           sql`NOT EXISTS (
             SELECT 1 FROM user_announcement_views 
             WHERE user_announcement_views.user_id = ${userId} 
