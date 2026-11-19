@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminUsersApi } from '@/services/api';
 import { Card } from '@/components/ui/card';
@@ -112,6 +112,83 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
   const pagination = response?.pagination || { total: 0, page: 1, limit: ITEMS_PER_PAGE };
   const totalPages = pagination.totalPages || Math.ceil(pagination.total / pagination.limit) || 1;
   const userDetail = detailResponse?.data;
+
+  // Track pending cross-page selection ('next' or 'prev')
+  const [pendingNavDirection, setPendingNavDirection] = useState<'next' | 'prev' | null>(null);
+
+  const currentUserIndex = users.findIndex((u: any) => u.id === selectedUserId);
+  const currentUserInList = currentUserIndex >= 0 ? users[currentUserIndex] : null;
+  const displayUser = userDetail || currentUserInList;
+
+  const hasPrevUser = currentUserIndex > 0;
+  const hasNextUser = currentUserIndex >= 0 && currentUserIndex < users.length - 1;
+  const prevUser = hasPrevUser ? users[currentUserIndex - 1] : null;
+  const nextUser = hasNextUser ? users[currentUserIndex + 1] : null;
+
+  const canGoPrev = hasPrevUser || currentPage > 1;
+  const canGoNext = hasNextUser || currentPage < totalPages;
+
+  const handlePrevUser = useCallback(() => {
+    if (hasPrevUser && prevUser) {
+      setSelectedUserId(prevUser.id);
+    } else if (currentPage > 1) {
+      setPendingNavDirection('prev');
+      setCurrentPage((p) => p - 1);
+    }
+  }, [hasPrevUser, prevUser, currentPage]);
+
+  const handleNextUser = useCallback(() => {
+    if (hasNextUser && nextUser) {
+      setSelectedUserId(nextUser.id);
+    } else if (currentPage < totalPages) {
+      setPendingNavDirection('next');
+      setCurrentPage((p) => p + 1);
+    }
+  }, [hasNextUser, nextUser, currentPage, totalPages]);
+
+  // Handle cross-page selection when users list updates
+  useEffect(() => {
+    if (!pendingNavDirection || users.length === 0) return;
+    if (pendingNavDirection === 'next') {
+      setSelectedUserId(users[0].id);
+    } else if (pendingNavDirection === 'prev') {
+      setSelectedUserId(users[users.length - 1].id);
+    }
+    setPendingNavDirection(null);
+  }, [users, pendingNavDirection]);
+
+  // Global position indicator across pagination
+  const globalIndex = currentUserIndex >= 0 
+    ? (currentPage - 1) * ITEMS_PER_PAGE + currentUserIndex + 1 
+    : 0;
+  const totalUsers = pagination.total || users.length;
+
+  // Keyboard navigation (← and → arrow keys)
+  useEffect(() => {
+    if (!selectedUserId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if suspend or delete confirmation modals are open
+      if (suspendConfirmUser || deleteConfirmUser) return;
+
+      // Don't trigger if user is typing in an input or textarea
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea' || e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (canGoPrev) handlePrevUser();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (canGoNext) handleNextUser();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedUserId, canGoPrev, canGoNext, suspendConfirmUser, deleteConfirmUser, handlePrevUser, handleNextUser]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status, reason }: { id: number; status: string; reason?: string }) => 
@@ -300,56 +377,66 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
       </Card>
 
       {/* User Full Detail Dialog */}
-      <Dialog open={!!selectedUserId} onOpenChange={(open) => !open && setSelectedUserId(null)}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] overflow-y-auto">
-          {detailLoading || !userDetail ? (
-            <div className="py-12 text-center text-slate-500">Loading user details...</div>
+      <Dialog 
+        open={!!selectedUserId} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedUserId(null);
+            setPendingNavDirection(null);
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] sm:max-w-4xl lg:max-w-5xl h-[88vh] max-h-[88vh] flex flex-col p-0 gap-0 overflow-hidden">
+          {!displayUser ? (
+            <div className="py-12 text-center text-slate-500 my-auto">Loading user details...</div>
           ) : (
-            <div className="space-y-6">
-              <DialogHeader className="pr-8 sm:pr-10">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1 pb-4 border-b">
-                  <div>
-                    <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-slate-900">
-                      {userDetail.username}
-                      {getRoleBadge(userDetail.role)}
-                    </DialogTitle>
-                    <DialogDescription className="text-sm mt-1 text-slate-500">
-                      User #{userDetail.id} &bull; Joined {new Date(userDetail.createdAt).toLocaleDateString()}
-                    </DialogDescription>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {getStatusBadge(userDetail.status)}
-                    <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+            <div className="flex flex-col h-full min-h-0">
+              {/* Pinned Top Header */}
+              <div className="px-6 py-5 border-b border-slate-200 shrink-0 bg-white">
+                <DialogHeader className="pr-8 sm:pr-10">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <DialogTitle className="text-2xl font-bold flex items-center gap-2 text-slate-900">
+                        {displayUser.username}
+                        {getRoleBadge(displayUser.role)}
+                      </DialogTitle>
+                      <DialogDescription className="text-sm mt-1 text-slate-500">
+                        User #{displayUser.id} &bull; Joined {new Date(displayUser.createdAt).toLocaleDateString()}
+                      </DialogDescription>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {getStatusBadge(displayUser.status)}
+                      <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
-                    {userDetail.status === 'active' && (
+                    {displayUser.status === 'active' && (
                       <Button 
                         variant="outline"
                         size="sm"
                         className="border-amber-200 text-amber-700 hover:bg-amber-50 cursor-pointer shadow-2xs font-medium"
-                        onClick={() => handleOpenSuspend(userDetail)}
+                        onClick={() => handleOpenSuspend(displayUser)}
                         disabled={statusMutation.isPending}
                       >
                         <AlertTriangle className="h-3.5 w-3.5 mr-1 text-amber-600" />
                         Suspend User
                       </Button>
                     )}
-                    {userDetail.status === 'suspended' && (
+                    {displayUser.status === 'suspended' && (
                       <Button 
                         variant="outline"
                         size="sm"
                         className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 cursor-pointer shadow-2xs font-medium"
-                        onClick={() => statusMutation.mutate({ id: userDetail.id, status: 'active' })}
+                        onClick={() => statusMutation.mutate({ id: displayUser.id, status: 'active' })}
                         disabled={statusMutation.isPending}
                       >
                         Reactivate User
                       </Button>
                     )}
-                    {userDetail.status !== 'deleted' && (
+                    {displayUser.status !== 'deleted' && (
                       <Button 
                         variant="outline"
                         size="sm"
                         className="border-rose-200 text-rose-700 hover:bg-rose-50 cursor-pointer shadow-2xs font-medium"
-                        onClick={() => setDeleteConfirmUser(userDetail)}
+                        onClick={() => setDeleteConfirmUser(displayUser)}
                         disabled={statusMutation.isPending}
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-1 text-rose-600" />
@@ -359,6 +446,17 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                   </div>
                 </div>
               </DialogHeader>
+            </div>
+
+            {/* Scrollable Middle Content Area */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 min-h-0">
+              {detailLoading && !userDetail ? (
+                <div className="py-16 text-center text-slate-500 space-y-2">
+                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <p className="text-sm">Loading full user details...</p>
+                </div>
+              ) : userDetail ? (
+                <>
 
               {/* Suspension Reason Banner */}
               {userDetail.status === 'suspended' && (
@@ -557,8 +655,46 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                   </table>
                 </div>
               </div>
+                </>
+              ) : null}
             </div>
-          )}
+
+            {/* Pinned Bottom Navigation Footer - ALWAYS VISIBLE AT BOTTOM */}
+            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50/95 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <span className="font-medium text-slate-500">Navigation:</span>
+                <span>Viewing user <strong className="text-slate-800 font-semibold">{globalIndex}</strong> of <strong className="text-slate-800 font-semibold">{totalUsers}</strong></span>
+                <span className="hidden md:inline-flex items-center gap-1 text-slate-400 ml-2">
+                  (Use <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-slate-300 rounded text-slate-700 font-semibold shadow-2xs">←</kbd> and <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-slate-300 rounded text-slate-700 font-semibold shadow-2xs">→</kbd> arrow keys to switch)
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer font-medium text-xs h-8.5 px-3 bg-white hover:bg-slate-50 shadow-2xs"
+                  onClick={handlePrevUser}
+                  disabled={!canGoPrev}
+                  title={hasPrevUser && prevUser ? `Previous: ${prevUser.username}` : (currentPage > 1 ? 'Previous page' : 'First user')}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1 text-slate-600" />
+                  Previous User
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer font-medium text-xs h-8.5 px-3 bg-white hover:bg-slate-50 shadow-2xs"
+                  onClick={handleNextUser}
+                  disabled={!canGoNext}
+                  title={hasNextUser && nextUser ? `Next: ${nextUser.username}` : (currentPage < totalPages ? 'Next page' : 'Last user')}
+                >
+                  Next User
+                  <ChevronRight className="h-4 w-4 ml-1 text-slate-600" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         </DialogContent>
       </Dialog>
 
