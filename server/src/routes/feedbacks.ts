@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../database';
 import { feedbacks, users } from '../database/schema';
-import { eq, desc, asc, isNull, and, or, ilike, count } from 'drizzle-orm';
+import { eq, desc, asc, isNull, and, or, ilike, count, inArray } from 'drizzle-orm';
 import { sendFeedbackReplyEmail } from '../services/emailService';
 import { authenticate, requireAdmin, AuthRequest } from '../middlewares/authMiddleware';
 
@@ -297,6 +297,39 @@ router.post('/:id/reply', authenticate, requireAdmin, async (req: AuthRequest, r
   } catch (err) {
     console.error('Error in POST /api/feedbacks/:id/reply:', err);
     res.status(500).json({ error: 'Failed to send reply' });
+  }
+});
+
+// Admin: Bulk soft delete feedbacks
+router.post('/bulk-delete', authenticate, requireAdmin, async (req: AuthRequest, res: any) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids must be a non-empty array of feedback IDs' });
+    }
+
+    const numericIds = ids
+      .map((id: any) => parseInt(id, 10))
+      .filter((id: number) => !isNaN(id));
+
+    if (numericIds.length === 0) {
+      return res.status(400).json({ error: 'No valid feedback IDs provided' });
+    }
+
+    const result = await db.update(feedbacks)
+      .set({ deletedAt: new Date() })
+      .where(and(inArray(feedbacks.feedbackId, numericIds), isNull(feedbacks.deletedAt)))
+      .returning();
+
+    res.json({
+      message: `${result.length} feedback(s) deleted successfully`,
+      deletedCount: result.length,
+      data: result,
+    });
+  } catch (err) {
+    console.error('Error in POST /api/feedbacks/bulk-delete:', err);
+    res.status(500).json({ error: 'Failed to bulk delete feedbacks' });
   }
 });
 

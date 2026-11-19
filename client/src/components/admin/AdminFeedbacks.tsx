@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Trash2 } from 'lucide-react';
 
@@ -25,6 +26,8 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFeedback, setSelectedFeedback] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [replyMessage, setReplyMessage] = useState('');
   const ITEMS_PER_PAGE = 10;
 
@@ -36,6 +39,11 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Reset selected rows whenever page, filter, search, or sort changes
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [debouncedSearch, statusFilter, currentPage, sortOrder]);
 
   const { data: response, isLoading } = useQuery({
     queryKey: ['adminFeedbacks', { page: currentPage, limit: ITEMS_PER_PAGE, search: debouncedSearch, status: statusFilter, sortOrder }],
@@ -51,6 +59,23 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
   };
   const pendingCount = response?.pendingCount ?? feedbacks.filter((f: any) => f.status === 'pending').length;
 
+  const visibleFeedbackIds: number[] = feedbacks.map((f: any) => f.feedbackId);
+  const isAllSelected = visibleFeedbackIds.length > 0 && visibleFeedbackIds.every((id: number) => selectedIds.includes(id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(visibleFeedbackIds);
+    }
+  };
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number, status: 'pending' | 'sent' | 'replied' }) => feedbacksApi.updateStatus(id, status),
     onSuccess: () => {
@@ -65,10 +90,24 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminFeedbacks'] });
       toast.success('Feedback deleted successfully');
+      if (deleteTarget) {
+        setSelectedIds((prev) => prev.filter((item) => item !== deleteTarget.feedbackId));
+      }
       setDeleteTarget(null);
       if (selectedFeedback) setSelectedFeedback(null);
     },
     onError: (error: any) => toast.error(error.message)
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => feedbacksApi.bulkDelete(ids),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['adminFeedbacks'] });
+      toast.success(`${res.deletedCount || selectedIds.length} feedback(s) deleted successfully`);
+      setSelectedIds([]);
+      setIsBulkDeleteModalOpen(false);
+    },
+    onError: (error: any) => toast.error(error.message || 'Failed to delete feedbacks')
   });
 
   const replyMutation = useMutation({
@@ -137,12 +176,53 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
         </div>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-rose-50/90 border border-rose-200 px-4 py-2.5 rounded-lg text-sm text-rose-950 animate-in fade-in-50 duration-200 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="font-semibold px-2 py-0.5 bg-rose-200 text-rose-900 rounded text-xs">
+              {selectedIds.length} Selected
+            </span>
+            <span className="text-slate-700 font-medium">
+              {selectedIds.length === 1 ? '1 feedback ticket selected' : `${selectedIds.length} feedback tickets selected`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-slate-600 hover:text-slate-900 h-8 text-xs font-medium bg-none"
+              onClick={() => setSelectedIds([])}
+            >
+              Clear Selection
+            </Button> */}
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="h-8 text-xs font-medium gap-1.5 shadow-xs"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Selected ({selectedIds.length})
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card className="shadow-sm border-slate-200/50 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 w-16">No.</th>
+                <th className="px-4 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox 
+                    checked={isAllSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all feedbacks on current page"
+                  />
+                </th>
+                <th className="px-4 py-4 w-14">No.</th>
                 <th className="px-6 py-4">Subject</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => { setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc'); setCurrentPage(1); }}>
@@ -156,40 +236,56 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Loading feedbacks...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">Loading feedbacks...</td></tr>
               ) : feedbacks.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">{debouncedSearch ? 'No feedbacks found matching your search.' : 'No feedbacks found.'}</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">{debouncedSearch ? 'No feedbacks found matching your search.' : 'No feedbacks found.'}</td></tr>
               ) : (
-                feedbacks.map((feedback: any, index: number) => (
-                  <tr key={feedback.feedbackId} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedFeedback(feedback)}>
-                    <td className="px-6 py-4 font-mono text-xs font-medium text-slate-500">
-                      {(pagination.page - 1) * pagination.limit + index + 1}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{feedback.subject}</td>
-                    <td className="px-6 py-4">{getStatusBadge(feedback.status)}</td>
-                    <td className="px-6 py-4 text-slate-500">{new Date(feedback.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40 font-medium"
-                          onClick={(e) => { e.stopPropagation(); setSelectedFeedback(feedback); }}
-                        >
-                          View
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(feedback); }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                feedbacks.map((feedback: any, index: number) => {
+                  const isSelected = selectedIds.includes(feedback.feedbackId);
+                  return (
+                    <tr 
+                      key={feedback.feedbackId} 
+                      className={`hover:bg-slate-50 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-rose-50/40 hover:bg-rose-50/60' : ''
+                      }`} 
+                      onClick={() => setSelectedFeedback(feedback)}
+                    >
+                      <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectOne(feedback.feedbackId)}
+                          aria-label={`Select feedback ${feedback.subject}`}
+                        />
+                      </td>
+                      <td className="px-4 py-4 font-mono text-xs font-medium text-slate-500">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-900">{feedback.subject}</td>
+                      <td className="px-6 py-4">{getStatusBadge(feedback.status)}</td>
+                      <td className="px-6 py-4 text-slate-500">{new Date(feedback.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/40 font-medium"
+                            onClick={(e) => { e.stopPropagation(); setSelectedFeedback(feedback); }}
+                          >
+                            View
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(feedback); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -368,6 +464,37 @@ export default function AdminFeedbacks({ initialFeedbackId, onClearInitialFeedba
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Delete Feedback'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Feedbacks Confirmation Dialog */}
+      <Dialog open={isBulkDeleteModalOpen} onOpenChange={setIsBulkDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-rose-600 mb-1">
+              <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-lg">Delete Selected Feedbacks</DialogTitle>
+            </div>
+            <DialogDescription className="text-slate-600 pt-2 text-sm leading-relaxed">
+              Are you sure you want to delete <span className="font-semibold text-slate-900">{selectedIds.length}</span> selected feedback ticket{selectedIds.length > 1 ? 's' : ''}?
+              They will be removed from the active feedbacks list.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-3 mt-4 pt-3 border-t">
+            <Button variant="outline" onClick={() => setIsBulkDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => bulkDeleteMutation.mutate(selectedIds)}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selectedIds.length} Feedback${selectedIds.length > 1 ? 's' : ''}`}
             </Button>
           </div>
         </DialogContent>

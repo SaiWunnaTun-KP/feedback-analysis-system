@@ -299,6 +299,7 @@ export const feedbacksApi = {
   updateStatus: (id: number, status: 'pending' | 'sent' | 'replied') => apiFetch(`/feedbacks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   reply: (id: number, replyMessage: string) => apiFetch(`/feedbacks/${id}/reply`, { method: 'POST', body: JSON.stringify({ replyMessage }) }),
   delete: (id: number) => apiFetch(`/feedbacks/${id}`, { method: 'DELETE' }),
+  bulkDelete: (ids: number[]) => apiFetch('/feedbacks/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
 };
 
 export const faqsApi = {
