@@ -432,8 +432,21 @@ export default function AdminUsers({ onNavigateToFeedback }: AdminUsersProps = {
                     </div>
                   ) : (
                     <div className="py-3 text-sm text-slate-600 space-y-2">
-                      <p className="font-medium text-slate-700">Free Tier (No Active Subscription)</p>
-                      <p className="text-xs text-slate-500">Quota: Up to 75 MB (Free trial tier)</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-700">Free Tier (No Active Subscription)</p>
+                        {userDetail.hasUsedFreeTrial ? (
+                          <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[11px] px-2 py-0.5">
+                            Trial Used
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-[11px] px-2 py-0.5">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Quota: Up to 75 MB {userDetail.hasUsedFreeTrial ? '(One-time trial consumed)' : '(Free trial available)'}
+                      </p>
                     </div>
                   )}
                 </div>

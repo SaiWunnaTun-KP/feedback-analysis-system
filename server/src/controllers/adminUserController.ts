@@ -79,6 +79,7 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
       suspensionReason: users.suspensionReason,
       companyName: users.companyName,
       companyEmail: users.companyEmail,
+      hasUsedFreeTrial: users.hasUsedFreeTrial,
       createdAt: users.createdAt
     }).from(users).where(eq(users.id, userId));
 

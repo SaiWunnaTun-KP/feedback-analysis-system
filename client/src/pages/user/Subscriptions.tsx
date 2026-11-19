@@ -128,7 +128,7 @@ export default function Subscriptions() {
                 <h3 className="text-lg font-medium text-slate-300">Current Active Plan</h3>
               </div>
               <div className="text-4xl font-bold text-white flex flex-wrap items-center gap-3">
-                {currentPlan ? currentPlan.name : (isFreeTier ? 'Free Trial' : 'No Active Plan')}
+                {currentPlan ? currentPlan.name : 'Free Trial'}
                 {currentPlan && (
                   <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30">
                     Active
@@ -139,8 +139,18 @@ export default function Subscriptions() {
                     Canceled
                   </Badge>
                 )}
+                {!currentPlan && isFreeTier && (
+                  <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30">
+                    Active
+                  </Badge>
+                )}
+                {!currentPlan && hasUsedFreeTrial && (
+                  <Badge className="bg-amber-500/20 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30">
+                    Trial Used
+                  </Badge>
+                )}
               </div>
-              {subscription && (
+              {subscription ? (
                 <p className="text-slate-400 mt-2">
                   {isCanceled ? (
                     <>
@@ -151,6 +161,14 @@ export default function Subscriptions() {
                       Renews automatically on <span className="text-slate-200 font-medium">{new Date(subscription.endDate).toLocaleDateString()}</span>
                     </>
                   )}
+                </p>
+              ) : hasUsedFreeTrial ? (
+                <p className="text-slate-400 mt-2">
+                  You have used your one-time 75 MB free trial. Choose a plan below to continue analyzing datasets.
+                </p>
+              ) : (
+                <p className="text-slate-400 mt-2">
+                  One-time free trial includes up to 75 MB storage for your first dataset analysis.
                 </p>
               )}
             </div>
@@ -164,12 +182,24 @@ export default function Subscriptions() {
                 Cancel Subscription
               </Button>
             )}
+            {!subscription && (
+              <Button 
+                variant="secondary" 
+                className="bg-white text-slate-900 hover:bg-slate-100 font-medium"
+                onClick={() => {
+                  const el = document.getElementById('available-plans-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Upgrade Plan
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Available Plans */}
-      <div>
+      <div id="available-plans-section">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Available Plans</h2>

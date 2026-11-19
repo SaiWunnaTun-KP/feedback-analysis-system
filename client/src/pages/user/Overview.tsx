@@ -40,6 +40,9 @@ export default function Overview() {
   } else if (isFreeTier) {
     maxStorage = 75;
     usedStorage = 0;
+  } else if (hasUsedFreeTrial) {
+    maxStorage = 75;
+    usedStorage = 75;
   }
 
   const usagePercent = maxStorage > 0 ? Math.min((usedStorage / maxStorage) * 100, 100) : 0;
@@ -75,10 +78,12 @@ export default function Overview() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">Active Plan</p>
-              {subscription ? (
+              {subscription && currentPlan ? (
                 <Badge className="bg-blue-100 text-blue-700">{currentPlan.name} Plan</Badge>
               ) : isFreeTier ? (
-                <Badge variant="outline" className="text-slate-600">Free Trial</Badge>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50">Free Trial</Badge>
+              ) : hasUsedFreeTrial ? (
+                <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50">Trial Used</Badge>
               ) : (
                 <Badge variant="destructive">None</Badge>
               )}
