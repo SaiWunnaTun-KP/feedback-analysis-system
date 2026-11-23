@@ -184,10 +184,7 @@ export default function AdminLoginPage() {
             InsightRetail
           </span>
         </Link>
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-          <ShieldAlert size={12} className="text-indigo-400" />
-          <span>System Administration Portal</span>
-        </div>
+        
       </div>
 
       {/* Main Card */}
@@ -337,28 +334,7 @@ export default function AdminLoginPage() {
               )}
             </Button>
           </form>
-
-          {/* Security Notice Box */}
-          <div className="mt-4 p-3.5 rounded-xl bg-black/40 border border-white/10 text-white/60 text-xs leading-relaxed space-y-1">
-            <div className="flex items-center gap-1.5 text-white/80 font-semibold">
-              <ShieldCheck size={13} className="text-indigo-400" />
-              <span>Access & Security Policy</span>
-            </div>
-            <p>
-              This portal is restricted to system administrators. Failed attempts trigger account lockout and security telemetry.
-            </p>
-          </div>
         </CardContent>
-
-        <CardFooter className="flex flex-col gap-2 pt-0 pb-6 border-t border-white/10 mt-2 pt-4">
-          <Link
-            to="/login"
-            className="text-xs text-white/60 hover:text-indigo-300 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <ArrowLeft size={13} />
-            <span>Not an admin? Return to Retail Manager Login</span>
-          </Link>
-        </CardFooter>
       </Card>
     </div>
   );

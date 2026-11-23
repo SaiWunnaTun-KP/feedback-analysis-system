@@ -1138,12 +1138,6 @@ export default function LandingPage() {
                         Create Account
                       </Link>
                     </li>
-                    <li className="pt-1.5 border-t border-border/40">
-                      <Link to="/admin/login" className="text-xs text-muted-foreground/80 hover:text-foreground transition-colors flex items-center gap-1.5">
-                        <ShieldCheck size={13} className="text-muted-foreground" />
-                        Admin Portal
-                      </Link>
-                    </li>
                   </>
                 )}
               </ul>
