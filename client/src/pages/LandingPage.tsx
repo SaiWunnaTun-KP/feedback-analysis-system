@@ -414,12 +414,6 @@ export default function LandingPage() {
 
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center text-center max-w-4xl mx-auto space-y-6">
-            {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs sm:text-sm font-semibold tracking-wide shadow-xs animate-fade-in">
-              <Sparkles className="h-4 w-4 text-blue-500" />
-              <span>Next-Gen PyABSA Aspect-Sentiment Triplet Extraction</span>
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-foreground leading-[1.12]">
               Turn Messy Customer Feedback Into{' '}
@@ -430,7 +424,7 @@ export default function LandingPage() {
 
             {/* Supporting Description */}
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl font-normal leading-relaxed">
-              Star ratings only tell you <em>that</em> a customer was unhappy. InsightRetail's deep learning AI pinpoints
+              Star ratings only tell you <em>that</em> a customer was unhappy. InsightRetail pinpoints
               <em> exactly which aspect</em> failed — extracting fine-grained (Aspect, Opinion, Sentiment) triplets
               from thousands of reviews in seconds.
             </p>
@@ -507,9 +501,6 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-20 bg-muted/30 border-y border-border/60 relative scroll-mt-16">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
-              Simplified 4-Step Pipeline
-            </Badge>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               From Raw Customer CSV to High-Impact Decisions
             </h2>
@@ -532,10 +523,6 @@ export default function LandingPage() {
                   Drag and drop your raw customer review CSV containing comments, ratings, and product IDs. Instant schema validation ensures zero errors.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-xs text-muted-foreground">
-                <FileSpreadsheet size={15} className="text-blue-500" />
-                <span>Supports up to 2,048MB files</span>
-              </div>
             </div>
 
             {/* Step 2 */}
@@ -550,10 +537,7 @@ export default function LandingPage() {
                   Our PyABSA worker isolates subtle nuances, extracting aspect targets, descriptor opinions, and exact sentiment polarity scores.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-xs text-muted-foreground">
-                <Zap size={15} className="text-indigo-500" />
-                <span>Deep neural triplet parsing</span>
-              </div>
+              
             </div>
 
             {/* Step 3 */}
@@ -568,10 +552,7 @@ export default function LandingPage() {
                   Explore dynamic KPI scorecards, stacked aspect performance charts, word clouds, and sentiment breakdowns across your catalog.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-xs text-muted-foreground">
-                <PieChart size={15} className="text-sky-500" />
-                <span>Real-time charts & filters</span>
-              </div>
+              
             </div>
 
             {/* Step 4 */}
@@ -586,10 +567,7 @@ export default function LandingPage() {
                   Leverage the Product Action Matrix to prioritize urgent defect fixes, benchmark top performers, and export executive PDF summaries.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-xs text-muted-foreground">
-                <Award size={15} className="text-emerald-500" />
-                <span>Export PDF & CSV reports</span>
-              </div>
+              
             </div>
           </div>
         </div>
@@ -601,15 +579,10 @@ export default function LandingPage() {
       <section id="features" className="py-24 relative overflow-hidden scroll-mt-16">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
-              Platform Capabilities
-            </Badge>
+            
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Engineered for Complete Customer Sentiment Mastery
             </h2>
-            <p className="text-muted-foreground text-base sm:text-lg">
-              Explore the 7 foundational capabilities that make InsightRetail the premier choice for modern e-commerce and retail product intelligence.
-            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -626,10 +599,7 @@ export default function LandingPage() {
                   Powered by PyABSA. Deconstructs complex sentences into structured (Aspect, Opinion, Sentiment) triplets. Understand that "great display but fragile hinge" represents two opposite sentiments.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs font-semibold text-blue-600 dark:text-blue-400">
-                <span>Sub-sentence Granularity</span>
-                <ChevronRight size={16} />
-              </div>
+              
             </div>
 
             {/* Feature 2: Executive Overview (KPI scorecards) */}
@@ -645,10 +615,7 @@ export default function LandingPage() {
                   Real-time high-level metric cards: Total review volume, net aspect sentiment index, positive/neutral/negative balance, and automated critical defect alarms.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                <span>C-Suite Ready Metrics</span>
-                <ChevronRight size={16} />
-              </div>
+              
             </div>
 
             {/* Feature 3: Sentiment Breakdown Chart */}
@@ -664,10 +631,7 @@ export default function LandingPage() {
                   Interactive donut and distribution visualizations showing aggregated sentiment proportions across datasets, with instant slice drilldowns.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <span>Proportional Polarity Views</span>
-                <ChevronRight size={16} />
-              </div>
+              
             </div>
 
             {/* Feature 4: Aspect Performance (Stacked Bar) */}
@@ -683,10 +647,7 @@ export default function LandingPage() {
                   Compare aspect sentiment side-by-side. Isolate whether "Battery Life", "Customer Support", "Software", or "Price" drives customer complaints.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <span>Facet-Level Benchmarking</span>
-                <ChevronRight size={16} />
-              </div>
+              
             </div>
 
             {/* Feature 5: Product Action Matrix */}
@@ -702,10 +663,7 @@ export default function LandingPage() {
                   Prioritize products at a glance: Quadrant mapping instantly classifies SKUs into "Star Products", "Fix Urgently", "High Potential", and "Deprecate".
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs font-semibold text-rose-600 dark:text-rose-400">
-                <span>Operational Prioritization</span>
-                <ChevronRight size={16} />
-              </div>
+              
             </div>
 
             {/* Feature 6: Interactive Word Cloud */}
@@ -721,10 +679,7 @@ export default function LandingPage() {
                   Discover the authentic voice of your customers. High-frequency positive praises and urgent negative friction terms rendered dynamically with D3.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between text-xs font-semibold text-cyan-600 dark:text-cyan-400">
-                <span>Dynamic Frequency Rendering</span>
-                <ChevronRight size={16} />
-              </div>
+             
             </div>
 
             {/* Feature 7: Deep-Dive Filters & Triplet Table (Spans full width on large screens or 3rd column) */}
@@ -765,15 +720,9 @@ export default function LandingPage() {
       <section id="solutions" className="py-20 bg-muted/30 border-y border-border/60 scroll-mt-16">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
-              Built For Modern Retail
-            </Badge>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Who Benefits from InsightRetail?
             </h2>
-            <p className="text-muted-foreground text-base sm:text-lg">
-              Tailored tools and analytics designed to empower every tier of your retail and e-commerce operation.
-            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -826,9 +775,6 @@ export default function LandingPage() {
       <section id="pricing" className="py-24 relative overflow-hidden scroll-mt-16">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
-              Flexible Subscriptions
-            </Badge>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Transparent Plans for Teams of All Sizes
             </h2>
@@ -1029,9 +975,6 @@ export default function LandingPage() {
       <section id="faq" className="py-20 bg-muted/30 border-y border-border/60 scroll-mt-16">
         <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-4 mb-12">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-semibold">
-              Frequently Asked Questions
-            </Badge>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               Got Questions? We Have Answers.
             </h2>
@@ -1041,7 +984,7 @@ export default function LandingPage() {
 
             {/* Real-time search filter */}
             <div className="pt-4 max-w-md mx-auto relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 bottom-1 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search questions or keywords..."
