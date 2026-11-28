@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    actor SA as Super Admin
+    participant AdminUI as Admin Portal
+    participant API as Express Server
+    participant DB as PostgreSQL DB
+    participant Email as Email Service
+    participant UserUI as User Dashboard
+    actor RM as Retail Manager
+
+    Note over SA, DB: 1. Admin Creates New Plan
+    SA->>AdminUI: Fill new plan form & submit
+    AdminUI->>API: POST /api/admin/plans
+    API->>DB: Insert new plan & 'created' announcement (all users)
+    API-->>Email: Dispatch New Plan email to active retailers
+    API-->>AdminUI: 201 Plan created successfully
+
+    Note over UserUI, RM: 2. Retail Manager Views Creation Announcement
+    RM->>UserUI: Open / refresh Retail Dashboard
+    UserUI->>API: GET /api/announcements/unseen
+    API->>DB: Query unseen announcement (createdAt >= user.createdAt)
+    API-->>UserUI: Return "New Plan Available" announcement
+    UserUI-->>RM: Display announcement banner/modal
+    RM->>UserUI: Dismiss announcement
+    UserUI->>API: POST /api/announcements/:id/seen
+    API->>DB: Record seen state in user_announcement_views
+
+    Note over SA, DB: 3. Admin Deactivates Plan
+    SA->>AdminUI: Click Deactivate on target plan
+    AdminUI->>API: PATCH /api/plans/:id/deactivate
+    API->>DB: Set plan status = INACTIVE & create 'deactivated' announcement
+    API-->>Email: Send personalized deactivation notice with end date
+    API-->>AdminUI: 200 Plan deactivated successfully
+
+    Note over UserUI, RM: 4. Subscribed Retail Manager Views Deactivation Announcement
+    RM->>UserUI: Open / refresh Retail Dashboard
+    UserUI->>API: GET /api/announcements/unseen
+    API->>DB: Query unseen announcement & inject user's personal end date
+    API-->>UserUI: Return personalized "Plan Deactivated" announcement
+    UserUI-->>RM: Display deactivation notice with billing end date
+    RM->>UserUI: Dismiss announcement
+    UserUI->>API: POST /api/announcements/:id/seen
+    API->>DB: Mark announcement as seen

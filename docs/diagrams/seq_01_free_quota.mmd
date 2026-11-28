@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    actor RM as Retail Manager
+    participant UI as Web Client
+    participant API as Express Server
+    participant DB as PostgreSQL DB
+    participant R2 as Cloudflare R2
+    participant Worker as Python AI Worker
+
+    Note over RM, Worker: 1. Registration & Login
+    RM->>UI: Fill registration form & submit
+    UI->>API: POST /api/auth/register
+    API->>DB: Insert user (hasUsedFreeTrial = false)
+    API-->>UI: 201 User registered successfully
+
+    RM->>UI: Enter email & password to login
+    UI->>API: POST /api/auth/login
+    API->>DB: Verify email, password & active status
+    API-->>UI: 200 Return JWT token & user info
+
+    Note over RM, Worker: 2. First-Time Upload (Free Quota <= 75MB)
+    RM->>UI: Select CSV file & click Upload
+    UI->>API: POST /api/datasets/upload (CSV)
+    API->>DB: Check active subscription & hasUsedFreeTrial
+    Note right of DB: No active sub & hasUsedFreeTrial == false\nGrants 75MB one-time free quota
+    API->>R2: Upload CSV file to storage
+    API->>DB: Set hasUsedFreeTrial = true & insert dataset
+    API->>Worker: POST /analyze (dataset_id)
+    API-->>UI: 200 File uploaded & analysis started
+
+    Note over RM, Worker: 3. Second Upload Attempt (Fails - Free Quota Exhausted)
+    RM->>UI: Select another CSV file & click Upload
+    UI->>API: POST /api/datasets/upload (CSV)
+    API->>DB: Check active subscription & hasUsedFreeTrial
+    Note right of DB: No active sub & hasUsedFreeTrial == true
+    API-->>UI: 402 Payment Required (Free trial exhausted)
+    UI-->>RM: Show upgrade prompt & "Trial Used" status

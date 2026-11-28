@@ -1,0 +1,10 @@
+flowchart TD
+    Start(["Start"]) --> Register["Register New Retail Manager Account"]
+    Register --> Login["Login to Retail Dashboard"]
+    Login --> FirstUpload["First-Time Upload: Select CSV File (<= 75MB)"]
+    FirstUpload --> CheckQuota1{"Active Plan or\nFree Trial Unused?"}
+    CheckQuota1 -->|Yes - Free Trial Unused| UploadSuccess["Upload Succeeds & Analysis Starts\n(Free Trial Marked as Used)"]
+    UploadSuccess --> SecondUpload["Attempt Second Upload: Select Another CSV"]
+    SecondUpload --> CheckQuota2{"Active Plan or\nFree Trial Unused?"}
+    CheckQuota2 -->|No - Free Trial Exhausted| UploadFail["Upload Fails (Quota Exhausted)\nPrompt to Subscribe to a Plan"]
+    UploadFail --> End(["End"])
