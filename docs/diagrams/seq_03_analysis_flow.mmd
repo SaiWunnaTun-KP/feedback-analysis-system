@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor RM as Retail Manager
+    participant UI as Web Client
+    participant API as Express Server
+    participant DB as PostgreSQL DB
+
+    Note over RM, DB: 1. Go to Datasets Page & Select Completed Dataset
+    RM->>UI: Open Datasets page (/dashboard/datasets)
+    UI->>API: GET /api/datasets
+    API->>DB: Query user's datasets
+    API-->>UI: Return datasets list
+    RM->>UI: Select a completed dataset ("View Report")
+
+    Note over RM, DB: 2. View Analysis Overview & Section Purposes
+    UI->>API: GET /api/reports/:datasetId/overview
+    API->>DB: Aggregate sentiment, product & aspect stats
+    API-->>UI: Return executiveOverview, actionMatrix & aspectPerformance
+    UI-->>RM: Render Analysis Report Sections
+    Note over RM, UI: Executive Overview: Total reviews, health score & sentiment split\nAspect Performance: Pos/Neu/Neg breakdown per product aspect\nProduct Action Matrix: Groups products into Star, Needs Attention, Mixed
+
+    Note over RM, DB: 3. Product Action Matrix & Product Detail Drilldown
+    UI->>API: GET /api/reports/:datasetId/product-matrix
+    API->>DB: Query filtered & sorted product matrix
+    API-->>UI: Return categorized product list
+    RM->>UI: Click a specific product row
+    UI->>API: GET /api/reports/:datasetId/product/:productName
+    API->>DB: Query summary, aspect drivers, word cloud & quotes
+    API-->>UI: Return product detail analytics
+    UI-->>RM: Display Product Detail Page (Drivers, Word Cloud & Quotes)

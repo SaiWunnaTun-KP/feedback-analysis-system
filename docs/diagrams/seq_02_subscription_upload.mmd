@@ -1,0 +1,36 @@
+sequenceDiagram
+    autonumber
+    actor RM as Retail Manager
+    participant UI as Web Client
+    participant API as Express Server
+    participant Stripe as Stripe Gateway
+    participant DB as PostgreSQL DB
+    participant R2 as Cloudflare R2
+    participant Worker as Python AI Worker
+
+    Note over RM, DB: 1. Subscribe to a Plan
+    RM->>UI: Select plan & click Purchase / Upgrade
+    UI->>API: POST /api/subscriptions/create (planId)
+    API->>DB: Fetch user & plan details
+    API->>Stripe: Create/get customer & create incomplete subscription
+    API->>DB: Save INCOMPLETE subscription record
+    API-->>UI: Return subscriptionId & clientSecret
+
+    RM->>UI: Enter card details & confirm payment
+    UI->>Stripe: Confirm card payment
+    Stripe-->>UI: Payment succeeded
+    Stripe->>API: Webhook: customer.subscription.updated (active)
+    API->>DB: Update subscription status = ACTIVE & period end
+    UI->>API: POST /api/subscriptions/sync
+    API-->>UI: Return synced ACTIVE status
+    UI-->>RM: Display Active Plan & expanded storage quota
+
+    Note over RM, Worker: 2. Upload Dataset with Active Subscription
+    RM->>UI: Select CSV file & click Upload
+    UI->>API: POST /api/datasets/upload (CSV)
+    API->>DB: Verify active subscription & remaining quota
+    Note right of DB: usedStorageMb + fileSizeMb <= maxStorageMb
+    API->>R2: Upload CSV file to storage
+    API->>DB: Increment usedStorageMb & insert dataset
+    API->>Worker: POST /analyze (dataset_id)
+    API-->>UI: 200 Upload successful & analysis started

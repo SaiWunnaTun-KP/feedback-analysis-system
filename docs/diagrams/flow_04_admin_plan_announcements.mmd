@@ -1,0 +1,12 @@
+flowchart TD
+    Start(["Start: Super Admin"]) --> AdminPlans["Open Manage Plans Page"]
+    AdminPlans --> CreatePlan["Create New Subscription Plan\n(Name, Price, Storage Quota, Duration)"]
+    CreatePlan --> CreateSuccess["Plan Created Successfully\n('New Plan Available' Announcement Generated)"]
+    CreateSuccess --> UserView1["Retail Manager Opens Dashboard\nViews 'New Plan Available' Announcement"]
+    UserView1 --> Dismiss1["User Dismisses Announcement"]
+    
+    Dismiss1 --> AdminDeactivate["Admin Clicks 'Deactivate' on Target Plan"]
+    AdminDeactivate --> DeactivateSuccess["Plan Status Set to Inactive\n('Plan Deactivated' Announcement Generated)"]
+    DeactivateSuccess --> UserView2["Subscribed Retail Manager Opens Dashboard\nViews Personalized Deactivation Notice with Billing End Date"]
+    UserView2 --> Dismiss2["User Acknowledges & Dismisses Announcement"]
+    Dismiss2 --> End(["End"])

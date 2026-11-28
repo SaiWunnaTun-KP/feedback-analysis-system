@@ -1,0 +1,15 @@
+flowchart TD
+    Start(["Start"]) --> DatasetsPage["Go to Datasets Page"]
+    DatasetsPage --> SelectDataset["Select a Completed Dataset & Click 'View Report'"]
+    SelectDataset --> OverviewPage["View Analysis Overview Page"]
+    
+    OverviewPage --> Sec1["Executive Overview Section\n(Purpose: Overall Health Score, Total Reviews & Sentiment Split)"]
+    OverviewPage --> Sec2["Aspect Performance Section\n(Purpose: Positive/Neutral/Negative Counts per Product Aspect)"]
+    OverviewPage --> Sec3["Product Action Matrix Section\n(Purpose: Categorize Products into Star, Needs Attention, or Mixed)"]
+    
+    Sec1 --> SelectProduct["Click a Specific Product Row in Action Matrix"]
+    Sec2 --> SelectProduct
+    Sec3 --> SelectProduct
+    
+    SelectProduct --> ProductDetail["Open Product Detail Page\n- Negative & Positive Aspect Drivers\n- Opinion Word Cloud\n- Customer Review Quotes"]
+    ProductDetail --> End(["End"])

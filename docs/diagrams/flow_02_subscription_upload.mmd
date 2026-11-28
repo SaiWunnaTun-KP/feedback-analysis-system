@@ -1,0 +1,14 @@
+flowchart TD
+    Start(["Start"]) --> SubsPage["Open Subscriptions & Plans Page"]
+    SubsPage --> SelectPlan["Select a Subscription Plan Tier"]
+    SelectPlan --> Checkout["Enter Card Details & Confirm Payment"]
+    Checkout --> PaymentCheck{"Payment Successful?"}
+    PaymentCheck -->|No| PaymentFail["Show Payment Error / Cancelled"]
+    PaymentFail --> SubsPage
+    PaymentCheck -->|Yes| PlanActive["Subscription Activated\nStorage Quota Expanded"]
+    PlanActive --> UploadPage["Go to Datasets Page & Select CSV File"]
+    UploadPage --> QuotaCheck{"Within Plan\nStorage Quota?"}
+    QuotaCheck -->|No| QuotaFail["Show Storage Limit Exceeded"]
+    QuotaFail --> EndFail(["End"])
+    QuotaCheck -->|Yes| UploadSuccess["Upload Succeeds & Analysis Starts"]
+    UploadSuccess --> EndSuccess(["End"])
